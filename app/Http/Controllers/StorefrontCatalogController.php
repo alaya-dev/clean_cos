@@ -52,8 +52,10 @@ class StorefrontCatalogController extends Controller
         $products = $this->applyFilters($this->catalogueQuery(), $request);
         $this->applyDefaultCatalogueOrder($products, $request);
         $products = $products->paginate(20)->withQueryString();
+        $products->load('category.parent');
+        $productsBySubcategory = $products->getCollection()->groupBy('category_id');
 
-        return view('storefront.products.index', compact('categories', 'products'));
+        return view('storefront.products.index', compact('categories', 'products', 'productsBySubcategory'));
     }
 
     public function category(Request $request, string $slug): View|RedirectResponse
@@ -124,7 +126,7 @@ class StorefrontCatalogController extends Controller
     {
         return Product::public()
             ->with([
-                'category:id,name,slug',
+                'category:id,parent_id,name,slug',
                 'images' => fn ($query) => $query->where('processing_status', 'ready')->orderByDesc('is_primary')->orderBy('sort_order'),
             ]);
     }

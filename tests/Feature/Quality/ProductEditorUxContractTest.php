@@ -80,19 +80,23 @@ class ProductEditorUxContractTest extends TestCase
         self::assertStringContainsString("per_page: '25'", $products);
         self::assertStringContainsString('page.last_page > 1', $products);
         self::assertStringContainsString("per_page: '25'", $categories);
-        self::assertStringContainsString('page.last_page > 1', $categories);
+        self::assertStringContainsString('category-hierarchy', $categories);
     }
 
     public function test_operational_lists_share_the_clear_row_and_summary_pattern(): void
     {
         $styles = file_get_contents(resource_path('css/app.css'));
 
-        foreach (['categories.ts', 'inventory.ts', 'complaints.ts', 'checkout-fields.ts', 'static-pages.ts'] as $file) {
+        foreach (['inventory.ts', 'complaints.ts', 'checkout-fields.ts', 'static-pages.ts'] as $file) {
             $view = file_get_contents(resource_path('js/admin/'.$file));
             self::assertStringContainsString('admin-list-page', $view);
             self::assertStringContainsString('list-summary-strip', $view);
             self::assertStringContainsString('admin-entity-list', $view);
         }
+
+        $categories = file_get_contents(resource_path('js/admin/categories.ts'));
+        self::assertStringContainsString('category-hierarchy', $categories);
+        self::assertStringContainsString('list-summary-strip', $categories);
 
         $products = file_get_contents(resource_path('js/admin/products.ts'));
         self::assertStringContainsString('list-summary-strip', $products);
@@ -191,7 +195,7 @@ class ProductEditorUxContractTest extends TestCase
 
         self::assertStringContainsString('product.images?.[0]?.public_url', $products);
         self::assertStringContainsString('admin-product-thumb', $products);
-        self::assertStringContainsString('category.image_url', $categories);
+        self::assertStringContainsString('image_url?: string | null', $categories);
         self::assertStringContainsString('admin-category-identity>span:not(:has(.admin-category-thumb))::before', $styles);
     }
 

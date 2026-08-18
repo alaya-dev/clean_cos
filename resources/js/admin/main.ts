@@ -180,7 +180,7 @@ const Shell = {
     },
     template: `<div class="admin-shell">
       <aside class="admin-sidebar">
-        <a class="admin-brand" href="/admin"><img class="admin-brand-logo" src="/logo1.webp" alt="" width="23" height="23"><span class="admin-brand-copy">PASSION<br><small>COSMETIC · ADMIN</small></span></a>
+        <a class="admin-brand" href="/admin"><img class="admin-brand-logo" src="/logo1.webp" alt="" width="23" height="23"><span class="admin-brand-copy">TT<br><small>DISPO · ADMIN</small></span></a>
         <nav class="admin-sidebar-navigation" aria-label="Navigation principale">
           <section v-for="group in navigationGroups" :key="group.label" class="admin-nav-group" :aria-label="group.label">
             <p class="admin-nav-group-label">{{ group.label }}</p>

@@ -45,7 +45,7 @@ class HomepageContentService
             return [
                 'store' => $this->storeSettings(),
                 'heroSlides' => HeroSlide::query()->where('is_active', true)->orderBy('sort_order')->limit((int) config('store.hero_active_limit'))->get(),
-                'categories' => Category::query()->where('is_active', true)->orderBy('sort_order')->get(),
+                'categories' => Category::query()->whereNull('parent_id')->where('is_active', true)->orderBy('sort_order')->get(),
                 'productSections' => $productSections,
                 'visualTiles' => VisualCategoryTile::query()->where('is_active', true)->whereHas('category', fn ($query) => $query->where('is_active', true))->with('category')->orderBy('sort_order')->get(),
                 'editorial' => EditorialSection::query()->where('is_active', true)->with(['products' => fn ($query) => $query->public()->with(['category', 'images'])])->first(),
