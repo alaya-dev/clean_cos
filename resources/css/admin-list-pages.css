@@ -50,6 +50,9 @@
 .category-product-position { position: absolute; top: .45rem; right: .5rem; display: grid; place-items: center; min-width: 1.35rem; height: 1.35rem; border-radius: 999px; background: var(--cream); color: var(--muted); font-size: .66rem; font-weight: 800; }
 .category-product-order-actions { grid-column: 1 / -1; display: flex !important; justify-content: flex-end; gap: .35rem; }
 .category-product-order-actions .admin-icon-action { width: 2rem; min-width: 2rem; height: 2rem; }
+.category-grid-notice { display: flex; align-items: center; gap: .65rem; margin: 1rem 0 1.15rem; padding: .85rem 1rem; border: 1px solid #e5b4c4; border-radius: .7rem; background: #fff1f5; color: #71334a; font-size: .8rem; line-height: 1.45; }
+.category-grid-notice strong { display: grid; place-items: center; flex: 0 0 1.35rem; width: 1.35rem; height: 1.35rem; border-radius: 50%; background: #c94b76; color: #fff; font-size: .75rem; }
+.category-grid-ordering > footer { display: flex; justify-content: flex-end; align-items: center; gap: .8rem; margin-top: 1.15rem; }
 
 .categories-list-page .category-parent-identity,
 .categories-list-page .category-subcategory-identity { display: flex; align-items: center; gap: .75rem; min-width: 0; }
