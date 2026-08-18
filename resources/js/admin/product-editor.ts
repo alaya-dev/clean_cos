@@ -3,7 +3,7 @@ import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { confirmAction, showError, showToast } from './feedback';
 import '../../css/admin-product-editor.css';
 
-type Category = { public_id: string; name: string };
+type Category = { public_id: string; name: string; subcategories?: Category[] };
 type Value = { id: number; value: string; parent_product_option_value_id?: number | null; parent_value?: { id: number; value: string } | null };
 type Variant = {
     public_id: string;
@@ -264,14 +264,14 @@ const ProductEditorView: Component = {
         const load = async () => {
             try {
                 const [categoryResult, detail] = await Promise.all([
-                    api<{ data: Page<Category> }>('categories?per_page=100&leaf_only=1'),
+                    api<{ data: Page<Category> }>('categories?per_page=100'),
                     isNew.value
                         ? Promise.resolve(null)
                         : api<{ data: Product }>(
                               `products/${route.params.reference}`,
                           ),
                 ]);
-                categories.value = categoryResult.data.data;
+                categories.value = categoryResult.data.data.flatMap((category) => (category.subcategories ?? []).map((subcategory) => ({ ...subcategory, name: `${category.name} · ${subcategory.name}` })));
                 if (detail) hydrate(detail.data);
             } catch (cause) {
                 showError(cause instanceof Error ? cause.message : 'Chargement impossible.');
