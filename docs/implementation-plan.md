@@ -783,8 +783,8 @@ Implement:
 
 ## 4.3 Product invariants
 
-- Exactly one category per product
-- Flat categories
+- Exactly one subcategory per product
+- Two-level category hierarchy: top-level categories contain subcategories; only subcategories contain products
 - Product-level regular price
 - Product-level promotional price
 - Promotional price lower than regular

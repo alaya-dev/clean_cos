@@ -264,7 +264,7 @@ const ProductEditorView: Component = {
         const load = async () => {
             try {
                 const [categoryResult, detail] = await Promise.all([
-                    api<{ data: Page<Category> }>('categories?per_page=100'),
+                    api<{ data: Page<Category> }>('categories?per_page=100&leaf_only=1'),
                     isNew.value
                         ? Promise.resolve(null)
                         : api<{ data: Product }>(

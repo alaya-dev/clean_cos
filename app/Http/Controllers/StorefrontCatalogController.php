@@ -13,6 +13,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -47,7 +48,7 @@ class StorefrontCatalogController extends Controller
 
     public function products(Request $request): View
     {
-        $categories = Category::query()->where('is_active', true)->orderBy('sort_order')->get();
+        $categories = $this->activeSubcategories();
         $products = $this->applyFilters($this->catalogueQuery(), $request);
         $this->applyDefaultCatalogueOrder($products, $request);
         $products = $products->paginate(20)->withQueryString();
@@ -61,7 +62,12 @@ class StorefrontCatalogController extends Controller
         if (! $category) {
             return $this->redirectForLegacyPath('/categories/'.$slug) ?? abort(404);
         }
-        $categories = Category::query()->where('is_active', true)->orderBy('sort_order')->get();
+        if ($category->parent_id === null && $category->subcategories()->where('is_active', true)->exists()) {
+            $subcategories = $category->subcategories()->where('is_active', true)->orderBy('sort_order')->get();
+
+            return view('storefront.categories.show', compact('category', 'subcategories'));
+        }
+        $categories = $this->activeSubcategories();
         $products = $this->applyFilters($this->catalogueQuery()->where('category_id', $category->id), $request);
         $this->applyDefaultCategoryOrder($products, $request);
         $products = $products->paginate(20)->withQueryString();
@@ -103,6 +109,14 @@ class StorefrontCatalogController extends Controller
     private function catalogueQuery(): Builder
     {
         return $this->catalogueCardQuery();
+    }
+
+    /** @return Collection<int, Category> */
+    private function activeSubcategories(): Collection
+    {
+        return Category::query()->where('is_active', true)->where(function (Builder $query): void {
+            $query->whereNotNull('parent_id')->orWhereDoesntHave('subcategories');
+        })->orderBy('sort_order')->get();
     }
 
     /** @return Builder<Product> */

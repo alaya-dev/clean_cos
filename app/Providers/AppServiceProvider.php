@@ -78,7 +78,10 @@ class AppServiceProvider extends ServiceProvider
                         'announcement_text' => $settings->get('store.announcement_text'), 'footer_statement' => $settings->get('store.footer_statement'),
                         'shipping_announcement' => $shipping->announcement(),
                     ],
-                    'navigationCategories' => Category::query()->where('is_active', true)->orderBy('sort_order')->get(['name', 'slug']),
+                    'navigationCategories' => Category::query()
+                        ->whereNull('parent_id')->where('is_active', true)
+                        ->with(['subcategories' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->select(['id', 'parent_id', 'name', 'slug'])])
+                        ->orderBy('sort_order')->get(['id', 'name', 'slug']),
                     'footerPages' => StaticPage::query()->where('is_active', true)->orderBy('id')->get(['title', 'slug']),
                 ];
             });

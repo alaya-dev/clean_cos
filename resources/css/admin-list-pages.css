@@ -32,6 +32,7 @@
 .inventory-table .admin-table-head, .inventory-table article { grid-template-columns: minmax(14rem, 1.4fr) minmax(8rem, .8fr) minmax(7rem, .7fr) minmax(9rem, .85fr) auto; }
 .admin-entity-list .router-link-active { color: inherit; }
 .category-grid-ordering { display: grid; gap: 1rem; padding: 1.15rem; border: 1px solid var(--line); border-radius: .8rem; background: var(--paper); box-shadow: 0 .22rem .7rem rgb(31 20 23 / .035); }
+.category-hierarchy{display:grid;gap:1rem}.category-hierarchy-parent{border:1px solid var(--line);border-radius:.8rem;background:var(--paper);overflow:hidden}.category-hierarchy-parent>header,.category-hierarchy-parent li{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem}.category-hierarchy-parent header>div:first-child,.category-hierarchy-parent li>span:first-child{display:grid;gap:.2rem}.category-hierarchy-parent small{color:var(--muted);font-size:.75rem}.category-hierarchy-parent ul{margin:0;padding:0;list-style:none;background:var(--cream)}.category-hierarchy-parent li{padding-left:2rem;border-top:1px solid var(--line)}.category-hierarchy-parent .admin-empty{margin:0;padding:1rem;text-align:left}
 .category-grid-ordering > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .category-grid-ordering h2 { font-size: 1.1rem; }
 .category-grid-ordering header p { margin-top: .3rem; color: var(--muted); font-size: .82rem; line-height: 1.45; }

@@ -77,7 +77,7 @@ class Product extends Model
      */
     public function scopePublic(Builder $query): Builder
     {
-        return $query->where('is_active', true)->whereHas('category', fn ($category) => $category->where('is_active', true));
+        return $query->where('is_active', true)->whereHas('category', fn ($category) => $category->where('is_active', true)->where(fn ($parent) => $parent->whereNull('parent_id')->orWhereHas('parent', fn ($root) => $root->where('is_active', true))));
     }
 
     public function getRouteKeyName(): string

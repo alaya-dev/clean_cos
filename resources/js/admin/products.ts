@@ -179,7 +179,7 @@ const ProductsView: Component = {
         };
         const loadCategories = async () => {
             try {
-                categories.value = (await api<{ data: Page<Category> }>('categories?per_page=100&is_active=1')).data.data;
+                categories.value = (await api<{ data: Page<Category> }>('categories?per_page=100&is_active=1&leaf_only=1')).data.data;
             } catch (cause) {
                 showError(cause instanceof Error ? cause.message : 'Impossible de charger les catégories.');
             }

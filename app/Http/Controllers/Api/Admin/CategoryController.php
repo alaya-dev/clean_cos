@@ -20,9 +20,14 @@ class CategoryController extends Controller
             'is_active' => ['nullable', 'boolean'],
             'sort' => ['nullable', 'in:name,-name,sort_order,-sort_order,created_at,-created_at'],
             'per_page' => ['nullable', 'integer', 'between:1,100'],
+            'leaf_only' => ['nullable', 'boolean'],
         ]);
         $sort = $data['sort'] ?? 'sort_order';
-        $categories = Category::query()->withCount('products')
+        $categories = Category::query()->when($data['leaf_only'] ?? false, fn ($query) => $query->where(function ($leafQuery): void {
+            $leafQuery->whereNotNull('parent_id')->orWhereDoesntHave('subcategories');
+        }), fn ($query) => $query->whereNull('parent_id'))->with([
+            'subcategories' => fn ($query) => $query->withCount('products')->orderBy('sort_order')->orderBy('name'),
+        ])->withCount('subcategories')
             ->when($data['search'] ?? null, fn ($query, $search) => $query->where('name', 'like', '%'.$search.'%'))
             ->when(array_key_exists('is_active', $data), fn ($query) => $query->where('is_active', $data['is_active']))
             ->orderBy(ltrim($sort, '-'), str_starts_with($sort, '-') ? 'desc' : 'asc')
@@ -56,6 +61,10 @@ class CategoryController extends Controller
         DB::transaction(function () use ($category, $data): void {
             $category->update($data);
             if (array_key_exists('is_active', $data) && ! $data['is_active']) {
+                $category->subcategories()->each(function (Category $subcategory): void {
+                    $subcategory->update(['is_active' => false]);
+                    $subcategory->products()->update(['is_active' => false]);
+                });
                 $category->products()->update(['is_active' => false]);
             }
         });
@@ -76,8 +85,9 @@ class CategoryController extends Controller
         $deletedProducts = DB::transaction(function () use ($category, $deletedAt): int {
             Category::query()->whereKey($category->id)->lockForUpdate()->firstOrFail();
 
+            $subcategoryIds = $category->subcategories()->lockForUpdate()->pluck('id');
             $deletedProducts = Product::query()
-                ->where('category_id', $category->id)
+                ->whereIn('category_id', $subcategoryIds->push($category->id))
                 ->lockForUpdate()
                 ->update([
                     'is_active' => false,
@@ -85,6 +95,7 @@ class CategoryController extends Controller
                     'updated_at' => $deletedAt,
                 ]);
 
+            $category->subcategories()->delete();
             $category->delete();
 
             return $deletedProducts;
@@ -162,6 +173,10 @@ class CategoryController extends Controller
                 $category->update(['is_active' => $data['is_active']]);
 
                 if (! $data['is_active']) {
+                    $category->subcategories()->each(function (Category $subcategory): void {
+                        $subcategory->update(['is_active' => false]);
+                        $subcategory->products()->update(['is_active' => false]);
+                    });
                     $category->products()->update(['is_active' => false]);
                 }
             }
@@ -183,6 +198,16 @@ class CategoryController extends Controller
         $category = $request->route('category');
         $ignoreId = $category instanceof Category ? ','.$category->id : '';
 
-        return $request->validate(['name' => [$required ? 'required' : 'sometimes', 'string', 'between:2,160'], 'slug' => ['nullable', 'string', 'max:190', 'unique:categories,slug'.$ignoreId], 'description' => ['nullable', 'string', 'max:5000'], 'is_active' => [$required ? 'required' : 'sometimes', 'boolean'], 'sort_order' => [$required ? 'required' : 'sometimes', 'integer', 'min:0'], 'seo_title' => ['nullable', 'string', 'max:255'], 'seo_description' => ['nullable', 'string', 'max:320']]);
+        $data = $request->validate(['parent_public_id' => ['nullable', 'ulid', 'exists:categories,public_id'], 'name' => [$required ? 'required' : 'sometimes', 'string', 'between:2,160'], 'slug' => ['nullable', 'string', 'max:190', 'unique:categories,slug'.$ignoreId], 'description' => ['nullable', 'string', 'max:5000'], 'is_active' => [$required ? 'required' : 'sometimes', 'boolean'], 'sort_order' => [$required ? 'required' : 'sometimes', 'integer', 'min:0'], 'seo_title' => ['nullable', 'string', 'max:255'], 'seo_description' => ['nullable', 'string', 'max:320']]);
+
+        if (array_key_exists('parent_public_id', $data)) {
+            $parent = $data['parent_public_id'] === null ? null : Category::query()->where('public_id', $data['parent_public_id'])->firstOrFail();
+            abort_if($parent?->parent_id !== null, 422, 'Une sous-catÃ©gorie ne peut pas contenir une autre sous-catÃ©gorie.');
+            abort_if($category instanceof Category && $parent?->id === $category->id, 422, 'Une catÃ©gorie ne peut pas Ãªtre sa propre parente.');
+            $data['parent_id'] = $parent?->id;
+            unset($data['parent_public_id']);
+        }
+
+        return $data;
     }
 }

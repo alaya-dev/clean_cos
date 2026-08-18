@@ -7,6 +7,7 @@ use App\Domain\Content\Services\HomepageCache;
 use App\Support\Media\PublicMediaUrl;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -21,7 +22,7 @@ class Category extends Model
 
     protected $appends = ['image_url', 'image_status'];
 
-    protected $fillable = ['public_id', 'name', 'slug', 'description', 'image_path', 'image_processing_status', 'image_width', 'image_height', 'is_active', 'sort_order', 'seo_title', 'seo_description'];
+    protected $fillable = ['public_id', 'parent_id', 'name', 'slug', 'description', 'image_path', 'image_processing_status', 'image_width', 'image_height', 'is_active', 'sort_order', 'seo_title', 'seo_description'];
 
     protected function casts(): array
     {
@@ -45,6 +46,18 @@ class Category extends Model
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
+    }
+
+    /** @return BelongsTo<Category, $this> */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /** @return HasMany<Category, $this> */
+    public function subcategories(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
     }
 
     public function getRouteKeyName(): string

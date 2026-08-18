@@ -753,6 +753,7 @@ Indexes and constraints:
 | Column | Type | Notes |
 |---|---|---|
 | `id` | BIGINT PK | |
+| `parent_id` | BIGINT FK nullable | Null for a top-level category; a subcategory belongs to one top-level category |
 | `public_id` | CHAR(26) | Unique |
 | `name` | VARCHAR(160) | French name |
 | `slug` | VARCHAR(190) | Unique |
@@ -768,6 +769,7 @@ Indexes:
 - Unique `public_id`
 - Unique `slug`
 - Index `(is_active, sort_order)`
+- Index `(parent_id, is_active, sort_order)`
 - Index `name`
 
 ### 15.3 `products`
@@ -776,7 +778,7 @@ Indexes:
 |---|---|---|
 | `id` | BIGINT PK | |
 | `public_id` | CHAR(26) | Unique |
-| `category_id` | BIGINT FK | Required |
+| `category_id` | BIGINT FK | Required; points to a product-bearing subcategory |
 | `name` | VARCHAR(200) | Required |
 | `slug` | VARCHAR(190) | Unique |
 | `short_description` | TEXT nullable | |
