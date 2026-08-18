@@ -94,6 +94,7 @@
     .product-order-filter { align-items: flex-start; flex-direction: column; }
     .admin-entity-list .admin-table-head { display: none; }
     .admin-entity-list article { display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; gap: .5rem .8rem; padding: .85rem; }
+    .categories-list-page .admin-entity-list.category-hierarchy article.category-hierarchy-parent { display: block !important; grid-template-columns: 1fr !important; gap: 0; padding: 0 !important; }
     .admin-entity-list article > span:not(.admin-row-actions):not(.admin-badge) { color: var(--muted); font-size: .8rem; }
     .admin-entity-list .admin-row-actions { grid-column: 1 / -1; justify-content: flex-start; }
     .admin-pagination { align-items: flex-start; flex-direction: column; }
