@@ -205,7 +205,7 @@ class ProductEditorUxContractTest extends TestCase
 
         self::assertStringContainsString('seront retirés du catalogue', $categories);
         self::assertStringContainsString('Les commandes passées resteront intactes.', $categories);
-        self::assertStringContainsString('@click="remove(category)"', $categories);
+        self::assertStringContainsString('@click="remove(subcategory)"', $categories);
     }
 
     public function test_storefront_explains_out_of_stock_and_uses_only_local_footer_icons(): void
