@@ -58,19 +58,19 @@ class ApplySecurityHeaders
 
         $policy = preg_replace(
             '/script-src\s+([^;]+)/',
-            "script-src $1 http://localhost:5173 http://127.0.0.1:5173 http://[::1]:5173 'unsafe-eval'",
+            "script-src $1 http://localhost:5173 http://127.0.0.1:5173 'unsafe-eval'",
             $policy,
             1
         ) ?? $policy;
         $policy = preg_replace(
             '/style-src\s+([^;]+)/',
-            'style-src $1 http://localhost:5173 http://127.0.0.1:5173 http://[::1]:5173',
+            'style-src $1 http://localhost:5173 http://127.0.0.1:5173',
             $policy,
             1
         ) ?? $policy;
         $policy = preg_replace(
             '/connect-src\s+([^;]+)/',
-            'connect-src $1 http://localhost:5173 http://127.0.0.1:5173 http://[::1]:5173 ws://localhost:5173 ws://127.0.0.1:5173 ws://[::1]:5173',
+            'connect-src $1 http://localhost:5173 http://127.0.0.1:5173 ws://localhost:5173 ws://127.0.0.1:5173',
             $policy,
             1
         ) ?? $policy;
