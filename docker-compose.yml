@@ -1,0 +1,122 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:?Set DB_DATABASE in .env.docker}
+      MYSQL_USER: ${DB_USERNAME:?Set DB_USERNAME in .env.docker}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.docker}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env.docker}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env.docker}
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: .
+      target: application
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
+    image: ToutDispo:${APP_IMAGE_TAG:-local}
+    restart: unless-stopped
+    env_file: .env.docker
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_storage:/var/www/html/storage/app
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan about --only=environment --no-ansi >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    build:
+      context: .
+      target: nginx
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
+    image: ToutDispo-nginx:${APP_IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    ports:
+      - "${HTTP_PORT:-127.0.0.1:8080}:80"
+    volumes:
+      - app_storage:/var/www/html/storage/app:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    image: ToutDispo:${APP_IMAGE_TAG:-local}
+    restart: unless-stopped
+    env_file: .env.docker
+    command: ["php", "artisan", "queue:work", "--queue=meta,integrations,critical,default,media,exports", "--sleep=1", "--tries=5", "--timeout=60", "--max-time=3600"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_storage:/var/www/html/storage/app
+
+  scheduler:
+    image: ToutDispo:${APP_IMAGE_TAG:-local}
+    restart: unless-stopped
+    env_file: .env.docker
+    command: ["php", "artisan", "schedule:work", "--no-interaction"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_storage:/var/www/html/storage/app
+
+  migrate:
+    image: ToutDispo:${APP_IMAGE_TAG:-local}
+    env_file: .env.docker
+    command: ["php", "artisan", "migrate", "--force"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_storage:/var/www/html/storage/app
+    profiles: ["maintenance"]
+
+volumes:
+  mysql_data:
+  redis_data:
+  app_storage:

@@ -1,0 +1,1 @@
+@include('errors.fallback', ['status' => 404, 'title' => 'Cette page est introuvable', 'message' => 'Le contenu que vous recherchez n’existe plus ou son adresse a changé.', 'actions' => [['href' => '/', 'label' => 'Retour à l’accueil'], ['href' => '/produits', 'label' => 'Découvrir les produits']]])

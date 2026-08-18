@@ -1,0 +1,1 @@
+@include('errors.fallback', ['status' => 429, 'title' => 'Patientez un instant', 'message' => 'Trop de demandes ont été envoyées. Réessayez dans quelques instants.', 'actions' => [['href' => '/panier', 'label' => 'Retour au panier'], ['href' => '/', 'label' => 'Retour à l’accueil']]])

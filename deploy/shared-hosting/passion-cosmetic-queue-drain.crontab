@@ -1,0 +1,7 @@
+# Install exactly one of the supported queue-worker mechanisms:
+# - a persistent Supervisor/systemd worker; OR
+# - this once-per-minute shared-hosting drain entry.
+#
+# Replace /path/to/current-release with the absolute Laravel release path.
+# `flock` prevents overlapping drains if one run has not finished yet.
+* * * * * flock -n /tmp/ToutDispo-queue-drain.lock sh /path/to/current-release/scripts/queue-drain-once.sh >> /path/to/logs/passion-queue-drain.log 2>&1

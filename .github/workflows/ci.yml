@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ToutDispo-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      APP_KEY: base64:WH/yYBgZghGCF/lSBtOqDPT8oaZeUZ4ELLaDVQZAKVI=
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: ToutDispo_test
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.4', extensions: mbstring, pdo_mysql }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer validate --strict
+      - run: npm ci
+      - run: ./vendor/bin/pint --test
+      - run: ./vendor/bin/phpstan analyse
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --run
+      - run: npm run test:coverage
+      - run: npm run build
+      - run: npm run check:asset-budgets
+      - run: php artisan test
+      #- run: composer test:coverage
+      - run: composer audit
+      #- run: npm audit --omit=dev --audit-level=high
+      #- run: npm audit --audit-level=high || true # Dev-only advisory is tracked in docs/dependency-risk-register.md.
+      - run: if git grep -nE 'AKIA[0-9A-Z]{16}|-----BEGIN .*PRIVATE KEY-----|sk_live_' -- ':!.env.example' ':!.github/workflows/ci.yml'; then echo 'Potential secret detected'; exit 1; fi
+      - run: composer check-doc-references
+
+      - name: Validate Docker Compose production definition
+        run: |
+          cp .env.docker.example .env.docker
+          sed -i \
+            -e 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-db-password/' \
+            -e 's/^MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=ci-root-password/' \
+            -e 's/^REDIS_PASSWORD=.*/REDIS_PASSWORD=ci-redis-password/' \
+            .env.docker
+          docker compose --env-file .env.docker config --quiet
+          rm -f .env.docker
+
+  deploy:
+    name: Deploy application
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy Docker application
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git pull --ff-only origin main
+            test -f .env.docker
+            docker compose --env-file .env.docker config --quiet
+            sh ./scripts/docker-deploy.sh
+            docker compose --env-file .env.docker ps
+            curl --fail --silent --show-error http://127.0.0.1:8080/up

@@ -1,0 +1,48 @@
+<?php
+
+return [
+    'accepted' => 'Le champ :attribute doit être accepté.',
+    'array' => 'Le champ :attribute doit être une liste.',
+    'after_or_equal' => 'Le champ :attribute doit être postérieur ou égal à :date.',
+    'before_or_equal' => 'Le champ :attribute doit être antérieur ou égal à :date.',
+    'between' => [
+        'numeric' => 'Le champ :attribute doit être compris entre :min et :max.',
+        'string' => 'Le champ :attribute doit contenir entre :min et :max caractères.',
+        'array' => 'Le champ :attribute doit contenir entre :min et :max éléments.',
+    ],
+    'boolean' => 'Le champ :attribute doit être vrai ou faux.',
+    'date' => 'Le champ :attribute doit être une date valide.',
+    'date_format' => 'Le champ :attribute ne correspond pas au format :format.',
+    'dimensions' => 'Les dimensions de :attribute sont invalides.',
+    'distinct' => 'Le champ :attribute contient une valeur en double.',
+    'email' => 'Le champ :attribute doit être une adresse e-mail valide.',
+    'file' => 'Le champ :attribute doit être un fichier.',
+    'image' => 'Le champ :attribute doit être une image.',
+    'in' => 'La valeur du champ :attribute est invalide.',
+    'integer' => 'Le champ :attribute doit être un nombre entier.',
+    'max' => [
+        'numeric' => 'Le champ :attribute ne peut pas dépasser :max.',
+        'file' => 'Le fichier :attribute ne peut pas dépasser :max kilo-octets.',
+        'string' => 'Le champ :attribute ne peut pas dépasser :max caractères.',
+        'array' => 'Le champ :attribute ne peut pas contenir plus de :max éléments.',
+    ],
+    'mimes' => 'Le fichier :attribute doit être au format :values.',
+    'min' => [
+        'numeric' => 'Le champ :attribute doit être au moins :min.',
+        'string' => 'Le champ :attribute doit contenir au moins :min caractères.',
+        'array' => 'Le champ :attribute doit contenir au moins :min éléments.',
+    ],
+    'nullable' => 'Le champ :attribute peut être vide.',
+    'numeric' => 'Le champ :attribute doit être un nombre.',
+    'regex' => 'Le format du champ :attribute est invalide.',
+    'required' => 'Le champ :attribute est obligatoire.',
+    'required_if' => 'Le champ :attribute est obligatoire.',
+    'string' => 'Le champ :attribute doit être une chaîne de caractères.',
+    'ulid' => 'Le champ :attribute est invalide.',
+    'unique' => 'Cette valeur est déjà utilisée.',
+    'url' => 'Le champ :attribute doit être une URL valide.',
+    'attributes' => [
+        'name' => 'nom', 'slug' => 'slug', 'code' => 'code promo', 'key' => 'clé',
+        'title' => 'titre', 'email' => 'adresse e-mail', 'image' => 'image',
+    ],
+];

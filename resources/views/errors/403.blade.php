@@ -1,0 +1,1 @@
+@include('errors.fallback', ['status' => 403, 'title' => 'Accès non autorisé', 'message' => 'Vous ne disposez pas de l’autorisation nécessaire pour accéder à cette page.', 'actions' => [['href' => '/', 'label' => 'Retour à l’accueil'], ['href' => '/produits', 'label' => 'Découvrir les produits']]])

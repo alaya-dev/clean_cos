@@ -1,0 +1,1 @@
+@include('errors.fallback', ['status' => 503, 'title' => 'La boutique revient bientôt', 'message' => 'Une courte opération est en cours. Réessayez dans quelques instants.', 'actions' => [['href' => url()->current(), 'label' => 'Réessayer'], ['href' => '/', 'label' => 'Retour à l’accueil']]])

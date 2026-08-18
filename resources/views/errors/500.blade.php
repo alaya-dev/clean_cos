@@ -1,0 +1,1 @@
+@include('errors.fallback', ['status' => 500, 'title' => 'Un problème est survenu', 'message' => 'Notre équipe a été informée. Vous pouvez réessayer dans quelques instants.', 'actions' => [['href' => url()->current(), 'label' => 'Réessayer'], ['href' => '/', 'label' => 'Retour à l’accueil']]])
