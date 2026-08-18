@@ -96,6 +96,9 @@ class CreateManualOrderAction
             // promotions remain part of the authoritative catalog price above.
             $promoDiscount = 0;
             $shipping = $this->shipping->calculate($subtotal);
+            $manualTotal = array_key_exists('manual_total_millimes', $data) && $data['manual_total_millimes'] !== null
+                ? (int) $data['manual_total_millimes']
+                : null;
             $status = (string) ($data['status'] ?? 'nouvelle');
             if (! in_array($status, array_diff(OrderStatusFlow::STATUSES, ['annulee']), true)) {
                 throw ValidationException::withMessages(['status' => 'Le statut initial doit représenter une commande active.']);
@@ -117,7 +120,8 @@ class CreateManualOrderAction
                 'product_discount_millimes' => $discount,
                 'promo_code_discount_millimes' => $promoDiscount,
                 'shipping_fee_millimes' => $shipping['fee']['millimes'],
-                'total_millimes' => $subtotal + $shipping['fee']['millimes'],
+                'total_millimes' => $manualTotal ?? ($subtotal + $shipping['fee']['millimes']),
+                'manual_total_millimes' => $manualTotal,
                 'promo_code_id' => null,
                 'promo_code_snapshot' => null,
             ]);

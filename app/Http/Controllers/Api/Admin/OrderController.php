@@ -46,6 +46,7 @@ class OrderController extends Controller
             'items.*.variant_public_id' => ['nullable', 'ulid'],
             'items.*.quantity' => ['required', 'integer', 'between:1,99'],
             'status' => ['nullable', Rule::in(array_diff(OrderStatusFlow::STATUSES, ['annulee']))],
+            'manual_total_millimes' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:999999999999999'],
         ]);
         $actor = $request->user();
         if ($actor === null) {

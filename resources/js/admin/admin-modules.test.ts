@@ -34,6 +34,14 @@ describe('admin operational modules', () => {
         expect(detail).toContain('Retour à la liste des commandes');
     });
 
+    it('exposes an optional manual total when creating an operator order', () => {
+        const create = readFileSync('resources/js/admin/order-create.ts', 'utf8');
+
+        expect(create).toContain('manualTotalInput');
+        expect(create).toContain('manual_total_millimes');
+        expect(create).toContain('Total facturé personnalisé');
+    });
+
     it('surfaces new orders without changing the current list ordering', () => {
         const list = readFileSync('resources/js/admin/orders.ts', 'utf8');
         const shell = readFileSync('resources/js/admin/main.ts', 'utf8');
@@ -48,6 +56,10 @@ describe('admin operational modules', () => {
         expect(shell).toContain('admin-nav-count');
         expect(shell).toContain('new_orders_count');
         expect(dashboard).toContain('setAdminNewOrderCount(payload.counts.new || 0)');
+        expect(dashboard).toContain('statusDonutStyle');
+        expect(dashboard).toContain('dashboard-compare-metrics');
+        expect(dashboard).toContain('Trafic des commandes');
+        expect(dashboard).toContain('Produits les plus commandés');
         expect(styles).toContain('.orders-page .order-row:has(.order-status.is-new)');
         expect(styles).toContain('@keyframes admin-order-attention-pulse');
     });

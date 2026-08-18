@@ -2,13 +2,8 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Domain\Catalog\Models\Product;
-use App\Domain\Catalog\Models\ProductVariant;
 use App\Domain\Commerce\Models\Order;
 use App\Domain\Commerce\Models\OrderChangeEvent;
-use App\Domain\Complaints\Models\Complaint;
-use App\Domain\MetaTracking\Models\MetaConfiguration;
-use App\Domain\MetaTracking\Models\MetaEvent;
 use App\Domain\Navex\Enums\NavexDeliveryStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
@@ -29,10 +24,8 @@ class OperationalDashboardController extends Controller
             'date_to' => ['nullable', 'date_format:Y-m-d', 'required_if:period,custom', 'after_or_equal:date_from'],
         ]);
         [$from, $until, $period] = $this->period($filters);
-        $role = (string) $request->user()?->role;
-        $key = 'pc:dashboard:v1:'.$role.':'.$from->format('YmdHis').':'.$until->format('YmdHis');
-
-        $data = Cache::remember($key, now()->addSeconds(60), fn (): array => $this->metrics($from, $until, $role === 'super_admin'));
+        $key = 'pc:dashboard:v2:'.$from->format('YmdHis').':'.$until->format('YmdHis');
+        $data = Cache::remember($key, now()->addSeconds(60), fn (): array => $this->metrics($from, $until));
 
         return ApiResponse::success([
             'period' => $period,
@@ -73,66 +66,58 @@ class OperationalDashboardController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function metrics(CarbonImmutable $from, CarbonImmutable $until, bool $isSuperAdmin): array
+    private function metrics(CarbonImmutable $from, CarbonImmutable $until): array
     {
         $orders = Order::query()->whereBetween('created_at', [$from, $until]);
         $statusRows = (clone $orders)->select('status', DB::raw('COUNT(*) as total'))->groupBy('status')->pluck('total', 'status')->all();
         $delivered = (clone $orders)->whereHas('navexShipment', fn ($shipment) => $shipment->where('status', NavexDeliveryStatus::DeliveredPaid->value));
-        $funnel = MetaEvent::query()->whereBetween('created_at', [$from, $until]);
-        $eventCounts = (clone $funnel)->select('event_name', DB::raw('COUNT(*) as total'))->groupBy('event_name')->pluck('total', 'event_name')->all();
-        $delivery = (clone $funnel)->select('capi_state', DB::raw('COUNT(*) as total'))->groupBy('capi_state')->pluck('total', 'capi_state')->all();
-        $browserAttempts = (clone $funnel)->whereIn('browser_state', ['rendered', 'attempted'])->count();
+        $now = CarbonImmutable::now('Africa/Tunis');
 
-        $data = [
+        return [
             'orders' => [
                 'submitted' => (clone $orders)->count(),
                 'by_status' => $statusRows,
+                'delivered_orders' => (clone $delivered)->count(),
                 'delivered_revenue_millimes' => (int) $delivered->sum('total_millimes'),
                 'average_delivered_order_millimes' => (int) round((float) (clone $delivered)->avg('total_millimes')),
-                'best_sellers' => DB::table('order_items')->join('orders', 'orders.id', '=', 'order_items.order_id')->join('navex_shipments', 'navex_shipments.order_id', '=', 'orders.id')->where('navex_shipments.status', NavexDeliveryStatus::DeliveredPaid->value)->whereBetween('orders.created_at', [$from, $until])->select('order_items.product_name_snapshot as name', DB::raw('SUM(order_items.quantity) as quantity'))->groupBy('order_items.product_name_snapshot')->orderByDesc('quantity')->limit(5)->get(),
-            ],
-            'inventory' => [
-                'low_stock_products' => Product::query()->where('is_active', true)->whereColumn('stock_quantity', '<=', 'low_stock_threshold')->orderBy('stock_quantity')->limit(8)->get(['public_id', 'name', 'stock_quantity', 'low_stock_threshold']),
-                'low_stock_variants' => ProductVariant::query()
-                    ->with('product:id,name')
-                    ->where('is_current', true)
-                    ->where('is_active', true)
-                    ->whereNotNull('low_stock_threshold')
-                    ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
-                    ->orderBy('stock_quantity')
-                    ->limit(8)
-                    ->get(['public_id', 'product_id', 'combination_key', 'stock_quantity', 'low_stock_threshold'])
-                    ->map(fn (ProductVariant $variant): array => [
-                        'public_id' => $variant->public_id,
-                        'product_name' => $variant->product?->name,
-                        'combination_key' => $variant->combination_key,
-                        'stock_quantity' => $variant->stock_quantity,
-                        'low_stock_threshold' => $variant->low_stock_threshold,
-                    ]),
-            ],
-            'complaints' => Complaint::query()->whereBetween('created_at', [$from, $until])->latest()->limit(5)->get(['public_reference', 'status', 'created_at']),
-            'meta' => [
-                'tracking_available' => MetaConfiguration::query()->where('state', 'active')->where('tracking_enabled', true)->exists(),
-                'logical_events' => $eventCounts,
-                'pixel_attempts' => $browserAttempts,
-                'capi' => $delivery,
-                'purchases' => [
-                    'successful_orders' => (clone $orders)->count(),
-                    'consent_eligible' => (clone $funnel)->where('event_name', 'Purchase')->where('marketing_consent', true)->count(),
-                    'pixel_attempts' => (clone $funnel)->where('event_name', 'Purchase')->whereIn('browser_state', ['rendered', 'attempted'])->count(),
-                    'capi_delivered' => (clone $funnel)->where('event_name', 'Purchase')->where('capi_state', 'succeeded')->count(),
-                    'pending' => (clone $funnel)->where('event_name', 'Purchase')->whereIn('capi_state', ['pending', 'sending', 'temporary_failure'])->count(),
-                    'failed' => (clone $funnel)->where('event_name', 'Purchase')->where('capi_state', 'permanent_failure')->count(),
-                    'matching_event_id_ready' => (clone $funnel)->where('event_name', 'Purchase')->whereNotNull('event_id')->count(),
+                'best_sellers' => DB::table('order_items')->join('orders', 'orders.id', '=', 'order_items.order_id')->where('orders.status', '!=', 'annulee')->whereBetween('orders.created_at', [$from, $until])->select('order_items.product_name_snapshot as name', DB::raw('SUM(order_items.quantity) as quantity'))->groupBy('order_items.product_name_snapshot')->orderByDesc('quantity')->limit(5)->get(),
+                'summary' => [
+                    'today' => $this->salesSummary($now->startOfDay()->utc(), $now->endOfDay()->utc()),
+                    'week' => $this->salesSummary($now->startOfWeek()->utc(), $now->endOfDay()->utc()),
+                    'month' => $this->salesSummary($now->startOfMonth()->utc(), $now->endOfDay()->utc()),
+                    'all' => $this->salesSummary(null, null),
                 ],
+                'trend' => $this->trend($from, $until),
             ],
         ];
+    }
 
-        if (! $isSuperAdmin) {
-            unset($data['meta']['capi']);
+    /** @return array{orders:int,total_millimes:int} */
+    private function salesSummary(?CarbonImmutable $from, ?CarbonImmutable $until): array
+    {
+        $query = Order::query()->where('status', '!=', 'annulee');
+        if ($from && $until) {
+            $query->whereBetween('created_at', [$from, $until]);
         }
 
-        return $data;
+        return ['orders' => (clone $query)->count(), 'total_millimes' => (int) $query->sum('total_millimes')];
+    }
+
+    /** @return list<array{date:string,orders:int,total_millimes:int}> */
+    private function trend(CarbonImmutable $from, CarbonImmutable $until): array
+    {
+        $rows = DB::table('orders')->whereBetween('created_at', [$from, $until])->where('status', '!=', 'annulee')->select(DB::raw('DATE(created_at) as day'), DB::raw('COUNT(*) as orders'), DB::raw('SUM(total_millimes) as total_millimes'))->groupBy(DB::raw('DATE(created_at)'))->get()->keyBy(fn ($row): string => (string) $row->day);
+        $draftRows = DB::table('checkout_drafts')->whereNull('converted_at')->where('last_activity_at', '<=', now()->subMinutes((int) config('checkout.draft_abandonment_minutes', 15)))->whereBetween('last_activity_at', [$from, $until])->select(DB::raw('DATE(last_activity_at) as day'), DB::raw('COUNT(*) as drafts'))->groupBy(DB::raw('DATE(last_activity_at)'))->get()->keyBy(fn ($row): string => (string) $row->day);
+        $start = $from->timezone('Africa/Tunis')->startOfDay();
+        $end = $until->timezone('Africa/Tunis')->startOfDay();
+        $points = [];
+        for ($date = $start; $date->lessThanOrEqualTo($end); $date = $date->addDay()) {
+            $row = $rows->get($date->toDateString());
+            $draftRow = $draftRows->get($date->toDateString());
+            $points[] = ['date' => $date->toDateString(), 'orders' => (int) ($row->orders ?? 0), 'drafts' => (int) ($draftRow->drafts ?? 0), 'total_millimes' => (int) ($row->total_millimes ?? 0)];
+        }
+
+        return $points;
     }
 
     private function encodeChangeCursor(int $sequence): string

@@ -1,6 +1,6 @@
 # Product Requirements Document
 
-## ToutDispo E-Commerce Platform
+## Passion Cosmetic E-Commerce Platform
 
 **Document version:** 1.0
 **Document status:** Initial approved scope
@@ -1052,20 +1052,17 @@ Each static page supports:
 
 ## 16.1 Dashboard Metrics
 
-The dashboard includes:
+The dashboard is dedicated to commercial order information and includes:
 
-* New-order count
-* Confirmed-order count
-* Delivered-order count
-* Cancelled-order count
-* Failed-delivery count
-* Returned-order count
-* Delivered-order revenue
+* Order and sales totals for today, the current week, and the current month
+* Total delivered revenue and delivered-order average
+* Order counts by status
+* Daily order and sales trend
 * Best-selling products
-* Low-stock products
-* Recent complaints
-* Meta event-delivery status
-* Meta event failures
+
+Inventory alerts, complaints, Meta delivery diagnostics, and infrastructure
+health remain available in their dedicated back-office areas rather than on
+the commercial dashboard.
 
 ## 16.2 Date Filters
 

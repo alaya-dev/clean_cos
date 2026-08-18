@@ -71,6 +71,31 @@ class ManualOrderCreationTest extends TestCase
         $this->assertDatabaseHas('meta_events', ['event_name' => 'Purchase']);
     }
 
+    public function test_manual_order_can_start_with_an_operator_defined_total(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $product = $this->product(4);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/admin/orders', array_replace($this->payload($product), ['manual_total_millimes' => 17_500]))
+            ->assertCreated();
+
+        $order = Order::query()->findOrFail($response->json('data.order.id'));
+        self::assertSame(17_500, $order->manual_total_millimes);
+        self::assertSame(17_500, $order->total_millimes);
+    }
+
+    public function test_manual_order_rejects_an_invalid_operator_defined_total(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $product = $this->product(2);
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/admin/orders', array_replace($this->payload($product), ['manual_total_millimes' => -1]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['manual_total_millimes']);
+    }
+
     public function test_manual_order_defaults_to_no_exchange_and_validates_exchange_details(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
@@ -154,7 +179,7 @@ class ManualOrderCreationTest extends TestCase
             'creation_credential_encrypted' => Crypt::encryptString('creation-token'),
             'tracking_credential_encrypted' => Crypt::encryptString('tracking-token'),
             'deletion_credential_encrypted' => Crypt::encryptString('deletion-token'),
-            'sender_name' => 'ToutDispo',
+            'sender_name' => 'Passion Cosmetic',
             'sender_location' => 'Tunis',
             'sender_governorate' => 'Tunis',
             'parcel_opening_option' => 'Non',

@@ -1,6 +1,6 @@
 # API Contracts
 
-## ToutDispo E-Commerce Platform
+## Passion Cosmetic E-Commerce Platform
 
 **Document version:** 1.0  
 **Status:** Implementation contract baseline  
@@ -16,7 +16,7 @@
 
 ## 1. Purpose
 
-This document defines the HTTP contracts that Codex and human developers must follow when implementing the ToutDispo platform.
+This document defines the HTTP contracts that Codex and human developers must follow when implementing the Passion Cosmetic platform.
 
 It specifies:
 
@@ -1851,7 +1851,19 @@ Sort:
 - `status`
 - `customer_name`
 
-### 20.2 Get prior orders for the current customer
+### 20.2 Create a manual order
+
+```http
+POST /api/v1/admin/orders
+```
+
+The request uses the same authoritative product, stock, delivery, exchange,
+Meta, and Navex rules as the normal order flow. `manual_total_millimes` is an
+optional integer in millimes. When present, it becomes the initial total
+charged for the order and is preserved as the manual total override. When it
+is omitted, the server calculates the total from articles and delivery.
+
+### 20.3 Get prior orders for the current customer
 
 ```http
 GET /api/v1/admin/orders/{order_public_reference}/customer-history
@@ -1863,13 +1875,13 @@ the current order, with only each prior order's reference, local status, date,
 and item name/quantity snapshots. It does not return address, phone, or other
 customer-profile data.
 
-### 20.3 Get order
+### 20.4 Get order
 
 ```http
 GET /api/v1/admin/orders/{order_public_reference}
 ```
 
-### 20.4 Archive and restore orders
+### 20.5 Archive and restore orders
 
 ```text
 POST /api/v1/admin/orders/bulk-archive
@@ -1881,7 +1893,7 @@ selected orders from the active list, and preserves their details, stock
 history, Navex/Meta references, and audit trail. Restore clears `archived_at`
 and makes the orders visible in the active list again.
 
-### 20.5 Permanently delete orders
+### 20.6 Permanently delete orders
 
 ```text
 DELETE /api/v1/admin/orders/bulk
@@ -1967,7 +1979,7 @@ Response:
 
 Admin may receive only a summary for Meta fields.
 
-### 20.6 Edit order
+### 20.7 Edit order
 
 ```http
 PATCH /api/v1/admin/orders/{order_public_reference}
@@ -2010,7 +2022,7 @@ Rules:
 - Stale version returns `409 ORDER_VERSION_CONFLICT`.
 - Terminal statuses return `409 ORDER_NOT_EDITABLE`.
 
-### 20.7 Update order total
+### 20.8 Update order total
 
 ```http
 PATCH /api/v1/admin/orders/{order_public_reference}/total
@@ -2035,7 +2047,7 @@ is available regardless of the local or Navex order status. Article
 recalculation updates the base pricing fields while preserving an explicit
 manual override until it is cleared.
 
-### 20.8 Transition order status
+### 20.9 Transition order status
 
 ```http
 POST /api/v1/admin/orders/{order_public_reference}/transitions
@@ -2092,7 +2104,7 @@ Rules:
 - Navex tracking status is independent from the local contact status.
 - A duplicate confirmation never creates a duplicate Navex shipment or Meta event.
 
-### 20.9 Add internal note
+### 20.10 Add internal note
 
 ```http
 POST /api/v1/admin/orders/{order_public_reference}/notes
@@ -2108,7 +2120,7 @@ Request:
 
 Notes are append-only through normal APIs.
 
-### 20.10 Print order
+### 20.11 Print order
 
 ```http
 GET /api/v1/admin/orders/{order_public_reference}/print
@@ -2118,7 +2130,7 @@ Returns printable HTML or PDF according to the later design decision.
 
 Must require authentication and authorization.
 
-### 20.11 Export orders
+### 20.12 Export orders
 
 ```http
 POST /api/v1/admin/orders/exports
@@ -2998,8 +3010,10 @@ GET /api/v1/admin/operational-health
 ```
 
 `dashboard` is available to Admin and Super Admin for `today`, `7d`, `30d`,
-`month`, or a bounded `custom` period. It includes operational order,
-inventory, complaint, consent-safe funnel, and Purchase delivery aggregates.
+`month`, or a bounded `custom` period. It contains order-only business data:
+period summaries, status counts, delivered revenue, daily order trend, and
+best-selling products. Meta, complaint, and inventory diagnostics remain in
+their dedicated areas and are not included in this dashboard response.
 `operational-health` returns safe Redis, failed queue, Meta backlog, and
 scheduler state only.
 

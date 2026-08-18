@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\MetaTracking;
 
+use App\Domain\Commerce\Models\CheckoutDraft;
 use App\Domain\Commerce\Models\Order;
 use App\Domain\MetaTracking\Models\MetaConfiguration;
 use App\Domain\MetaTracking\Models\MetaEvent;
@@ -24,14 +25,17 @@ class OperationalVisibilityTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
         $order = $this->order('confirmee');
         NavexShipment::query()->create(['order_id' => $order->id, 'status' => NavexDeliveryStatus::DeliveredPaid, 'creation_mode' => 'automatic']);
-        $this->event('Purchase', 'succeeded', $order);
-
+        CheckoutDraft::query()->create(['customer_data' => ['phone' => '20123456'], 'cart_snapshot' => [], 'last_activity_at' => now()->subMinutes(20)]);
         $this->actingAs($admin)->getJson('/api/v1/admin/dashboard?period=7d')
             ->assertOk()
             ->assertJsonPath('data.orders.submitted', 1)
             ->assertJsonPath('data.orders.delivered_revenue_millimes', 40_000)
-            ->assertJsonPath('data.meta.purchases.capi_delivered', 1)
-            ->assertJsonStructure(['data' => ['inventory' => ['low_stock_products', 'low_stock_variants']]]);
+            ->assertJsonPath('data.orders.summary.week.orders', 1)
+            ->assertJsonStructure(['data' => ['orders' => ['summary', 'trend', 'by_status']]])
+            ->assertJsonMissingPath('data.meta')
+            ->assertJsonMissingPath('data.inventory')
+            ->assertJsonMissingPath('data.complaints')
+            ->assertJsonFragment(['drafts' => 1]);
         $this->actingAs($admin)->getJson('/api/v1/admin/meta/diagnostics')->assertForbidden();
     }
 
