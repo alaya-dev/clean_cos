@@ -63,6 +63,8 @@
 .categories-list-page .category-parent-identity small,
 .categories-list-page .category-subcategory-identity small { color: var(--muted); font-size: .75rem; }
 .categories-list-page .category-hierarchy-parent > header { background: var(--paper); }
+.categories-list-page .category-hierarchy-parent > header { display: flex !important; visibility: visible !important; min-height: 4.8rem; }
+.categories-list-page .category-hierarchy-parent > header .category-parent-identity { display: flex !important; visibility: visible !important; }
 .categories-list-page .category-hierarchy-parent > ul > li { min-height: 5.25rem; }
 .categories-list-page .category-hierarchy-parent > ul > li:hover { background: #fff8f9; }
 .categories-list-page .admin-row-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .4rem; }
