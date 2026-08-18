@@ -38,7 +38,7 @@ services:
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
         VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
         VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
-    image: ToutDispo:${APP_IMAGE_TAG:-local}
+    image: toutdispo:${APP_IMAGE_TAG:-local}
     restart: unless-stopped
     env_file: .env.docker
     depends_on:
@@ -62,7 +62,7 @@ services:
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
         VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
         VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
-    image: ToutDispo-nginx:${APP_IMAGE_TAG:-local}
+    image: toutdispo-nginx:${APP_IMAGE_TAG:-local}
     restart: unless-stopped
     depends_on:
       app:
