@@ -78,7 +78,7 @@ services:
       retries: 3
 
   worker:
-    image: ToutDispo:${APP_IMAGE_TAG:-local}
+    image: toutdispo:${APP_IMAGE_TAG:-local}
     restart: unless-stopped
     env_file: .env.docker
     command: ["php", "artisan", "queue:work", "--queue=meta,integrations,critical,default,media,exports", "--sleep=1", "--tries=5", "--timeout=60", "--max-time=3600"]
@@ -91,7 +91,7 @@ services:
       - app_storage:/var/www/html/storage/app
 
   scheduler:
-    image: ToutDispo:${APP_IMAGE_TAG:-local}
+    image: toutdispo:${APP_IMAGE_TAG:-local}
     restart: unless-stopped
     env_file: .env.docker
     command: ["php", "artisan", "schedule:work", "--no-interaction"]
@@ -104,7 +104,7 @@ services:
       - app_storage:/var/www/html/storage/app
 
   migrate:
-    image: ToutDispo:${APP_IMAGE_TAG:-local}
+    image: toutdispo:${APP_IMAGE_TAG:-local}
     env_file: .env.docker
     command: ["php", "artisan", "migrate", "--force"]
     depends_on:
