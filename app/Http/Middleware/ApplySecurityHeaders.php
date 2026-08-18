@@ -25,7 +25,7 @@ class ApplySecurityHeaders
         $response->headers->set('Permissions-Policy', 'camera=(), geolocation=(), microphone=(), payment=(), usb=()');
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 
-        $policy = (string) config('security.content_security_policy');
+        $policy = $this->policyWithLocalViteSources((string) config('security.content_security_policy'));
         if ($policy !== '' && ! $response->headers->has('Content-Security-Policy')) {
             $header = config('security.csp_mode') === 'enforce'
                 ? 'Content-Security-Policy'
@@ -48,5 +48,33 @@ class ApplySecurityHeaders
     private function isPrivateResponse(Request $request): bool
     {
         return $request->is('admin', 'admin/*', 'api/v1/admin/*', 'commande/confirmee/*');
+    }
+
+    private function policyWithLocalViteSources(string $policy): string
+    {
+        if ($policy === '' || ! app()->environment('local')) {
+            return $policy;
+        }
+
+        $policy = preg_replace(
+            '/script-src\s+([^;]+)/',
+            "script-src $1 http://localhost:5173 http://127.0.0.1:5173 http://[::1]:5173 'unsafe-eval'",
+            $policy,
+            1
+        ) ?? $policy;
+        $policy = preg_replace(
+            '/style-src\s+([^;]+)/',
+            'style-src $1 http://localhost:5173 http://127.0.0.1:5173 http://[::1]:5173',
+            $policy,
+            1
+        ) ?? $policy;
+        $policy = preg_replace(
+            '/connect-src\s+([^;]+)/',
+            'connect-src $1 http://localhost:5173 http://127.0.0.1:5173 http://[::1]:5173 ws://localhost:5173 ws://127.0.0.1:5173 ws://[::1]:5173',
+            $policy,
+            1
+        ) ?? $policy;
+
+        return $policy;
     }
 }
