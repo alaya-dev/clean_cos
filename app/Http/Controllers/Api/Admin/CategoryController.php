@@ -114,7 +114,7 @@ class CategoryController extends Controller
     {
         $data = $request->validate(['items' => ['required', 'array', 'min:1', 'max:100'], 'items.*.public_id' => ['required', 'ulid', 'distinct'], 'items.*.sort_order' => ['required', 'integer', 'min:0']]);
         DB::transaction(function () use ($data): void {
-            $categories = Category::query()->whereIn('public_id', collect($data['items'])->pluck('public_id'))->lockForUpdate()->get();
+            $categories = Category::query()->whereIn('public_id', array_column($data['items'], 'public_id'))->lockForUpdate()->get();
             abort_if($categories->count() !== count($data['items']) || $categories->pluck('parent_id')->unique()->count() !== 1, 422, 'Seules les catégories du même niveau peuvent être réorganisées ensemble.');
             foreach ($data['items'] as $item) {
                 Category::query()->where('public_id', $item['public_id'])->update(['sort_order' => $item['sort_order']]);
