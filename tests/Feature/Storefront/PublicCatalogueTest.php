@@ -152,6 +152,7 @@ class PublicCatalogueTest extends TestCase
 
         $this->get('/recherche?q=soin')->assertOk()->assertSee('name="robots" content="noindex, follow"', false);
         $this->get('/sitemap.xml')->assertOk()->assertHeader('Content-Type', 'application/xml; charset=UTF-8')
+            ->assertSee('<?xml version="1.0" encoding="UTF-8"?>', false)
             ->assertSee('/categories/visage', false)->assertSee('/produits/soin-public', false)
             ->assertDontSee('/categories/cachee', false)->assertDontSee('/produits/soin-prive', false);
         $this->get('/robots.txt')->assertOk()->assertSee('Disallow: /admin')->assertSee('Sitemap: '.url('/sitemap.xml'));
