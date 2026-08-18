@@ -51,6 +51,30 @@
 .category-product-order-actions { grid-column: 1 / -1; display: flex !important; justify-content: flex-end; gap: .35rem; }
 .category-product-order-actions .admin-icon-action { width: 2rem; min-width: 2rem; height: 2rem; }
 
+.categories-list-page .category-parent-identity,
+.categories-list-page .category-subcategory-identity { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.categories-list-page .category-parent-identity > div,
+.categories-list-page .category-subcategory-identity > div { display: grid; gap: .2rem; min-width: 0; }
+.categories-list-page .category-parent-identity strong,
+.categories-list-page .category-subcategory-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.categories-list-page .category-parent-identity small,
+.categories-list-page .category-subcategory-identity small { color: var(--muted); font-size: .75rem; }
+.categories-list-page .category-hierarchy-parent > header { background: var(--paper); }
+.categories-list-page .category-hierarchy-parent > ul > li { min-height: 5.25rem; }
+.categories-list-page .category-hierarchy-parent > ul > li:hover { background: #fff8f9; }
+.categories-list-page .admin-row-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .4rem; }
+.categories-list-page .admin-row-actions .admin-outline { white-space: nowrap; }
+.categories-list-page .category-grid-ordering { margin: 1rem 0; }
+.categories-list-page .category-grid-ordering footer { display: flex; justify-content: flex-end; }
+
+@media (max-width: 720px) {
+    .categories-list-page .category-hierarchy-parent > header,
+    .categories-list-page .category-hierarchy-parent > ul > li { align-items: flex-start; flex-direction: column; }
+    .categories-list-page .admin-row-actions { width: 100%; justify-content: flex-start; }
+    .categories-list-page .category-hierarchy-parent > ul > li { padding: .85rem 1rem; }
+    .categories-list-page .category-subcategory-identity { width: 100%; }
+}
+
 @media (min-width: 900px) {
     .admin-list-page, .products-page { width: 100%; max-width: none !important; margin-inline: 0 !important; }
     .admin-list-page .admin-table, .admin-list-page .admin-filter-bar, .admin-list-page .list-summary-strip, .products-page .admin-table, .products-page .product-filter-panel, .products-page .list-summary-strip { width: 100%; }
