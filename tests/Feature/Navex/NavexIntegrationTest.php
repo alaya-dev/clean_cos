@@ -203,7 +203,7 @@ class NavexIntegrationTest extends TestCase
         ]);
         $order->items()->firstOrFail()->update(['product_name_snapshot' => 'Crème ✨ réparatrice']);
         $configuration->update([
-            'sender_name' => 'Passion ✨ Cosmetic',
+            'sender_name' => 'ToutDispo ✨',
             'sender_location' => 'Tunis 🧴',
             'sender_governorate' => "Tu\u{200B}nis",
         ]);
