@@ -7,11 +7,11 @@
     @if($facebookDomainVerification = app(\App\Domain\MetaTracking\Services\MetaConfigurationService::class)->facebookDomainVerification())
         <meta name="facebook-domain-verification" content="{{ $facebookDomainVerification }}">
     @endif
-    <title>{{ $title ?? 'ToutDispo' }}</title>
+    <title>{{ $title ?? 'Clean’Cos' }}</title>
     <meta name="description" content="{{ $description ?? 'Découvrez des soins et rituels de beauté choisis avec soin.' }}">
     <link rel="canonical" href="{{ $canonical ?? url()->current() }}">
     <meta property="og:locale" content="fr_TN">
-    <meta property="og:title" content="{{ $ogTitle ?? $title ?? 'ToutDispo' }}">
+    <meta property="og:title" content="{{ $ogTitle ?? $title ?? 'Clean’Cos' }}">
     <meta property="og:description" content="{{ $ogDescription ?? $description ?? 'Découvrez des soins et rituels de beauté choisis avec soin.' }}">
     <meta property="og:type" content="{{ $ogType ?? 'website' }}">
     <meta property="og:url" content="{{ $canonical ?? url()->current() }}">
@@ -55,9 +55,9 @@
     </div>
     <header class="store-header">
         <button class="icon-button mobile-menu-button" type="button" data-drawer-open aria-label="Ouvrir le menu" aria-expanded="false"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-        <a class="brand" href="{{ route('storefront.home') }}" aria-label="ToutDispo">
+        <a class="brand" href="{{ route('storefront.home') }}" aria-label="Clean’Cos">
             <span class="brand-lockup">
-                <img class="brand-logo" src="{{ asset('logo1.webp') }}" alt="ToutDispo" width="1024" height="1024">
+                <img class="brand-logo" src="{{ asset('images/brand/cleancos-logo.jpg') }}" alt="Clean’Cos" width="595" height="595">
             </span>
         </a>
         <nav class="desktop-nav" aria-label="Navigation principale"><a href="{{ route('storefront.home') }}">Accueil</a><a href="{{ route('storefront.products') }}">Boutique</a>@foreach($navigationCategories->take(7) as $category)<details class="category-nav-item"><summary>{{ $category->name }}</summary><div class="category-nav-panel"><div>@forelse($category->subcategories as $subcategory)<a href="{{ route('storefront.category', $subcategory->slug) }}">{{ $subcategory->name }}</a>@empty<a href="{{ route('storefront.category', $category->slug) }}">Découvrir la catégorie</a>@endforelse</div></div></details>@endforeach @if($navigationCategories->count() > 7)<details class="desktop-category-overflow"><summary>Plus de catégories</summary><div>@foreach($navigationCategories->skip(7) as $category)<a href="{{ route('storefront.category', $category->slug) }}">{{ $category->name }}</a>@endforeach</div></details>@endif</nav>
@@ -75,7 +75,10 @@
     @php($footerIcons = ['instagram' => 'instagram.png', 'facebook' => 'facebook.png', 'whatsapp' => 'whatsapp.png'])
     <footer class="store-footer">
         <div class="footer-brand">
-            <span class="brand">PASSION<span>COSMETIC</span></span>
+            <a class="footer-logo" href="{{ route('storefront.home') }}" aria-label="Clean’Cos">
+                <img src="{{ asset('images/brand/cleancos-logo.jpg') }}" alt="Clean’Cos" width="595" height="595" loading="lazy">
+            </a>
+            <p class="footer-brand-name">Clean’Cos</p>
             <p>{{ $storeContext['footer_statement'] }}</p>
         </div>
         <div class="footer-links">
@@ -92,7 +95,7 @@
                 @if(isset($footerIcons[strtolower($network)]))<a class="footer-contact" href="{{ $url }}" rel="noopener noreferrer"><img src="{{ asset('images/'.$footerIcons[strtolower($network)]) }}" alt="" width="22" height="22" decoding="async"><span>{{ ucfirst($network) }}</span></a>@endif
             @endforeach
         </div>
-        <div class="footer-bottom"><span>© {{ now()->year }} ToutDispo. Tous droits réservés.</span></div>
+        <div class="footer-bottom"><span>© {{ now()->year }} Clean’Cos. Tous droits réservés.</span></div>
     </footer>
     <section class="consent-banner" data-consent-banner hidden aria-labelledby="consent-title" role="dialog" aria-modal="true"><div><p id="consent-title" class="eyebrow">Acceptez les cookies pour autoriser la publicité et améliorer votre expérience.</p><div class="consent-actions"><button type="button" class="button button-dark" data-consent-accept>J’accepte</button></div><p class="consent-error" data-consent-error role="status" aria-live="polite"></p></div></section>
 </body>

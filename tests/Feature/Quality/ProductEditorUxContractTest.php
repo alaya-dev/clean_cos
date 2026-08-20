@@ -16,11 +16,12 @@ class ProductEditorUxContractTest extends TestCase
         self::assertStringContainsString('catalogueMore.dataset.nextUrl', $script);
     }
 
-    public function test_storefront_brand_mark_is_larger_on_desktop_without_changing_mobile_sizing(): void
+    public function test_storefront_uses_the_approved_cleancos_brand_mark(): void
     {
         $layout = file_get_contents(resource_path('views/components/layouts/storefront.blade.php'));
 
-        self::assertStringContainsString("asset('logo1.webp')", $layout);
+        self::assertStringContainsString("asset('images/brand/cleancos-logo.jpg')", $layout);
+        self::assertStringContainsString('alt="Clean’Cos"', $layout);
         self::assertStringContainsString('class="brand-lockup"', $layout);
         self::assertStringContainsString('.store-header .brand-lockup{width:4rem;height:4rem}', file_get_contents(resource_path('css/storefront.css')));
         self::assertStringContainsString('.store-header .brand-lockup{width:3.2rem;height:3.2rem}', file_get_contents(resource_path('css/storefront.css')));

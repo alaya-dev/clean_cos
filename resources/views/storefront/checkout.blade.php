@@ -1,4 +1,4 @@
-<x-layouts.storefront title="Finaliser ma commande | ToutDispo" description="Finalisez votre commande ToutDispo.">
+<x-layouts.storefront title="Finaliser ma commande | Clean’Cos" description="Finalisez votre commande Clean’Cos.">
     @push('head')<meta name="robots" content="noindex,nofollow">@endpush
     <section class="section commerce-page" data-checkout-page>
         <p class="eyebrow">Paiement à la livraison</p>

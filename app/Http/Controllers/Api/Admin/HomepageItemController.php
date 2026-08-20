@@ -159,6 +159,10 @@ class HomepageItemController extends Controller
         if ($contentType === 'brand' && isset($payload['content'])) {
             $payload['content'] = $sanitizer->sanitize($payload['content']);
         }
+        if ($contentType === 'reassurance' && isset($payload['icon_key'])) {
+            /* Keep the legacy column synchronized for older read paths and rollback safety. */
+            $payload['icon'] = $payload['icon_key'];
+        }
 
         return $payload;
     }

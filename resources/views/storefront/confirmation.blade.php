@@ -1,4 +1,4 @@
-<x-layouts.storefront title="Commande confirmée | ToutDispo" description="Votre commande a été enregistrée.">
+<x-layouts.storefront title="Commande confirmée | Clean’Cos" description="Votre commande a été enregistrée.">
     @push('head')<meta name="robots" content="noindex,nofollow">@endpush
     @php
         $purchasePayload = $purchaseEvent

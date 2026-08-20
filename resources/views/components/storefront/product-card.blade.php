@@ -13,7 +13,7 @@
                  @if($renditions) srcset="@foreach($renditions as $width => $url) {{ $url }} {{ $width }}w{{ !$loop->last ? ',' : '' }} @endforeach" sizes="(min-width: 1024px) 25vw, 50vw" @endif
                  width="{{ $image->width }}" height="{{ $image->height }}" loading="lazy" alt="{{ $image->alt_text ?: $product->name }}">
         @else
-            <span class="product-image-placeholder" aria-hidden="true">PC</span>
+            <span class="product-image-placeholder" aria-hidden="true">CC</span>
         @endif
         @if($hasPromotion)
             <span class="sale-badge">Offre</span>

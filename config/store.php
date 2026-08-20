@@ -18,6 +18,6 @@ return [
         'store.footer_statement' => ['type' => 'nullable_string', 'default' => null, 'max' => 500],
         'store.hero_autoplay_enabled' => ['type' => 'boolean', 'default' => true],
     ],
-    'approved_icons' => ['payment', 'phone', 'delivery', 'quality'],
+    'approved_icons' => ['ingredients_naturels', 'teste_dermatologiquement', 'livraison_rapide', 'paiement_livraison'],
     'social_hosts' => ['facebook.com', 'www.facebook.com', 'instagram.com', 'www.instagram.com'],
 ];

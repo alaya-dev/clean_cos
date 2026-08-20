@@ -73,8 +73,8 @@ class StorefrontContentSeeder extends Seeder
 
     private function seedReassuranceItems(): void
     {
-        foreach ([['truck', 'Livraison soignée', 'Votre commande est préparée avec attention.'], ['shield', 'Paiement à la livraison', 'Réglez votre commande à la réception.'], ['heart', 'Sélection Passion', 'Des produits choisis pour vos rituels.'], ['message-circle', 'Service client', 'Une équipe disponible pour vous accompagner.']] as $sortOrder => [$icon, $title, $text]) {
-            ReassuranceItem::query()->updateOrCreate(['title' => $title], ['icon' => $icon, 'text' => $text, 'is_active' => true, 'sort_order' => $sortOrder]);
+        foreach ([['livraison_rapide', 'Livraison soignée', 'Votre commande est préparée avec attention.'], ['paiement_livraison', 'Paiement à la livraison', 'Réglez votre commande à la réception.'], ['ingredients_naturels', 'Sélection Clean’Cos', 'Des produits choisis pour vos rituels.'], ['teste_dermatologiquement', 'Testé dermatologiquement', 'Des formules sélectionnées avec attention.']] as $sortOrder => [$iconKey, $title, $text]) {
+            ReassuranceItem::query()->updateOrCreate(['title' => $title], ['icon' => $iconKey, 'icon_key' => $iconKey, 'text' => $text, 'is_active' => true, 'sort_order' => $sortOrder]);
         }
     }
 

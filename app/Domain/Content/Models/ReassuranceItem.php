@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class ReassuranceItem extends Model
 {
-    protected $fillable = ['icon', 'title', 'text', 'is_active', 'sort_order'];
+    protected $fillable = ['icon', 'icon_key', 'title', 'text', 'is_active', 'sort_order'];
 
     protected function casts(): array
     {

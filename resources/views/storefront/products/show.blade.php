@@ -44,14 +44,14 @@
     });
     if ($primaryImage?->public_url) $structuredData['image'] = $primaryImage->public_url;
 @endphp
-<x-layouts.storefront :title="($product->seo_title ?: $product->name).' | ToutDispo'" :description="$product->seo_description ?: ($product->short_description ?: Str::limit(strip_tags($product->full_description ?: ''), 155))" :canonical="route('storefront.product', $product->slug)" :og-image="$primaryImage?->public_url" og-type="product">
+    <x-layouts.storefront :title="($product->seo_title ?: $product->name).' | Clean’Cos'" :description="$product->seo_description ?: ($product->short_description ?: Str::limit(strip_tags($product->full_description ?: ''), 155))" :canonical="route('storefront.product', $product->slug)" :og-image="$primaryImage?->public_url" og-type="product">
     @push('head')<script type="application/ld+json">@json($structuredData, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)</script><script type="application/ld+json">@json($breadcrumbStructuredData, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)</script>@endpush
     <section class="product-page section" data-product-detail data-product-public-id="{{ $product->public_id }}" data-product-stock="{{ $product->stock_quantity ?? 0 }}" data-product-variants='@json($variantsForClient)'>
         <nav class="breadcrumb" aria-label="Fil d’Ariane"><a href="{{ route('storefront.home') }}">Accueil</a><span>/</span><a href="{{ route('storefront.category', $product->category->slug) }}">{{ $product->category->name }}</a><span>/</span><span aria-current="page">{{ $product->name }}</span></nav>
         <div class="product-layout">
             <div class="product-gallery" data-gallery>
                 @if($product->images->count() > 1)<div class="gallery-thumbnails" data-gallery-thumbnails tabindex="0" aria-label="Autres images du produit">@foreach($product->images as $image)<button type="button" data-gallery-image="{{ $image->public_url }}" aria-label="Voir l’image {{ $loop->iteration }}"><img src="{{ $image->public_url }}" width="96" height="96" loading="lazy" alt=""></button>@endforeach</div>@endif
-                <div class="product-main-image">@if($primaryImage && $primaryImage->public_url)<img src="{{ $primaryImage->public_url }}" width="{{ $primaryImage->width }}" height="{{ $primaryImage->height }}" loading="eager" fetchpriority="high" alt="{{ $primaryImage->alt_text ?: $product->name }}" data-gallery-main>@else<span class="product-image-placeholder">PC</span>@endif</div>
+                <div class="product-main-image">@if($primaryImage && $primaryImage->public_url)<img src="{{ $primaryImage->public_url }}" width="{{ $primaryImage->width }}" height="{{ $primaryImage->height }}" loading="eager" fetchpriority="high" alt="{{ $primaryImage->alt_text ?: $product->name }}" data-gallery-main>@else<span class="product-image-placeholder">CC</span>@endif</div>
             </div>
             <div class="product-details">
                 <a class="product-category" href="{{ route('storefront.category', $product->category->slug) }}">{{ $product->category->name }}</a>

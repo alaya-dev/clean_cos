@@ -2,7 +2,7 @@
     @if (isset($products) && $products->previousPageUrl())<link rel="prev" href="{{ $products->previousPageUrl() }}">@endif
     @if (isset($products) && $products->nextPageUrl())<link rel="next" href="{{ $products->nextPageUrl() }}">@endif
 @endpush
-<x-layouts.storefront :title="($category->seo_title ?: $category->name).' | ToutDispo'" :description="$category->seo_description ?: ($category->description ?: 'Découvrez la sélection '.$category->name.' de ToutDispo.')">
+<x-layouts.storefront :title="($category->seo_title ?: $category->name).' | Clean’Cos'" :description="$category->seo_description ?: ($category->description ?: 'Découvrez la sélection '.$category->name.' de Clean’Cos.')">
     <section class="catalogue-hero"><nav class="breadcrumb" aria-label="Fil d’Ariane"><a href="{{ route('storefront.home') }}">Accueil</a><span>/</span><a href="{{ route('storefront.products') }}">Soins</a><span>/</span><span aria-current="page">{{ $category->name }}</span></nav><p class="eyebrow">Collection</p><h1>{{ $category->name }}</h1>@if($category->description)<p>{{ $category->description }}</p>@endif</section>
     @isset($subcategories)
         <section class="catalogue-page section"><div class="subcategory-grid" aria-label="Sous-catégories de {{ $category->name }}">@foreach($subcategories as $subcategory)<a class="subcategory-card" href="{{ route('storefront.category', $subcategory->slug) }}">@if($subcategory->image_url)<img src="{{ $subcategory->image_url }}" alt="" width="480" height="320" loading="lazy">@endif<span><small>Sous-catégorie</small><strong>{{ $subcategory->name }}</strong><span>Voir les produits <b aria-hidden="true">→</b></span></span></a>@endforeach</div></section>

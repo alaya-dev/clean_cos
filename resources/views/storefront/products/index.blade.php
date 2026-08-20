@@ -3,7 +3,7 @@
     @if ($products->nextPageUrl())<link rel="next" href="{{ $products->nextPageUrl() }}">@endif
 @endpush
 
-<x-layouts.storefront title="Tous les soins | ToutDispo" description="Explorez tous les soins ToutDispo.">
+<x-layouts.storefront title="Tous les soins | Clean’Cos" description="Explorez tous les soins Clean’Cos.">
     <section class="catalogue-hero">
         <div class="catalogue-container"><h1>Tous les soins</h1><p>Explorez chaque univers, puis trouvez le soin adapté à votre rituel.</p></div>
     </section>

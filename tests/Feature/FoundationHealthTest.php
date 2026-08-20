@@ -18,7 +18,7 @@ class FoundationHealthTest extends TestCase
     {
         $this->get('/')
             ->assertOk()
-            ->assertSee('ToutDispo')
+            ->assertSee('Clean’Cos')
             ->assertSee('lang="fr"', false);
     }
 }

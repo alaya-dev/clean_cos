@@ -157,8 +157,8 @@ class DemoPlatformSeeder extends Seeder
         $editorial = EditorialSection::query()->updateOrCreate(['heading' => 'Les gestes qui font du bien'], ['eyebrow' => 'Rituel', 'description' => 'Une routine courte, simple et agréable à adopter.', 'cta_label' => 'Découvrir la sélection', 'cta_url' => '/produits', 'image_path' => null, 'is_active' => true]);
         $editorial->products()->sync($products->take(3)->values()->mapWithKeys(fn (Product $product, int $position) => [$product->id => ['sort_order' => $position]])->all());
 
-        foreach ([['truck', 'Livraison soignée', 'Votre commande est préparée avec attention.'], ['shield', 'Paiement à la livraison', 'Réglez votre commande à la réception.'], ['heart', 'Sélection Passion', 'Des produits choisis pour vos rituels.'], ['message-circle', 'Service client', 'Une équipe disponible pour vous accompagner.']] as $sortOrder => [$icon, $title, $text]) {
-            ReassuranceItem::query()->updateOrCreate(['title' => $title], ['icon' => $icon, 'text' => $text, 'is_active' => true, 'sort_order' => $sortOrder]);
+        foreach ([['livraison_rapide', 'Livraison soignée', 'Votre commande est préparée avec attention.'], ['paiement_livraison', 'Paiement à la livraison', 'Réglez votre commande à la réception.'], ['ingredients_naturels', 'Sélection Clean’Cos', 'Des produits choisis pour vos rituels.'], ['teste_dermatologiquement', 'Testé dermatologiquement', 'Des formules sélectionnées avec attention.']] as $sortOrder => [$iconKey, $title, $text]) {
+            ReassuranceItem::query()->updateOrCreate(['title' => $title], ['icon' => $iconKey, 'icon_key' => $iconKey, 'text' => $text, 'is_active' => true, 'sort_order' => $sortOrder]);
         }
         foreach (range(1, 4) as $sortOrder) {
             SocialGalleryItem::query()->updateOrCreate(['url' => 'https://www.instagram.com/passioncosmeticdemo'.$sortOrder], ['image_path' => null, 'alt_text' => 'Inspiration beauté ToutDispo '.$sortOrder, 'is_active' => true, 'sort_order' => $sortOrder]);

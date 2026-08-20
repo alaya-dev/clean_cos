@@ -27,7 +27,7 @@ class SaveHomepageItemRequest extends FormRequest
                 ...$this->stateRules($required),
             ],
             'reassurance' => [
-                'icon' => [$required ? 'required' : 'sometimes', Rule::in(config('store.approved_icons'))],
+                'icon_key' => [$required ? 'required' : 'sometimes', Rule::in(config('store.approved_icons'))],
                 'title' => [$required ? 'required' : 'sometimes', 'string', 'between:2,160'],
                 'text' => [$required ? 'required' : 'sometimes', 'string', 'between:2,300'], ...$this->stateRules($required),
             ],
