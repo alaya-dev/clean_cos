@@ -122,7 +122,7 @@
   .order-item-image{width:2.6rem;height:2.6rem}.order-back-link{width:100%;justify-content:center}
 }
 @media(prefers-reduced-motion:reduce){.order-back-link{transition:none!important}.order-back-link:hover{transform:none}}
-.admin-brand{display:flex;align-items:center;gap:.5rem}.admin-brand-logo{width:1.45rem;height:1.45rem;flex:0 0 auto;object-fit:contain}.admin-brand-copy{display:grid}@media(max-width:639px){.admin-brand-logo{width:1.25rem;height:1.25rem}.admin-brand-copy{font-size:.67rem}}
+.admin-brand{display:flex;align-items:center;gap:.6rem}.admin-brand-logo{width:1.8rem;height:1.8rem;flex:0 0 auto;object-fit:contain;border-radius:50%}.admin-brand-copy{display:grid}@media(max-width:639px){.admin-brand-logo{width:1.55rem;height:1.55rem}.admin-brand-copy{font-size:.67rem}}
 
 /* Legacy shell rules used descendant selectors. These explicit scopes protect content-side asides. */
 .admin-shell>.admin-sidebar{display:flex;min-height:100%;flex-direction:column;background:var(--paper);box-shadow:inset -1px 0 0 var(--line)}.admin-shell .order-detail-side{min-height:0;height:auto;padding:0;border:0;background:transparent;box-shadow:none}

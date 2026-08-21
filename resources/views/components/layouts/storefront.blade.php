@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/brand/cleancos-logo.jpg') }}">
     @if($facebookDomainVerification = app(\App\Domain\MetaTracking\Services\MetaConfigurationService::class)->facebookDomainVerification())
         <meta name="facebook-domain-verification" content="{{ $facebookDomainVerification }}">
     @endif

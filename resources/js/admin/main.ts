@@ -180,7 +180,7 @@ const Shell = {
     },
     template: `<div class="admin-shell">
       <aside class="admin-sidebar">
-        <a class="admin-brand" href="/admin"><img class="admin-brand-logo" src="/logo1.webp" alt="" width="23" height="23"><span class="admin-brand-copy">TT<br><small>DISPO · ADMIN</small></span></a>
+        <a class="admin-brand" href="/admin"><img class="admin-brand-logo" src="/images/brand/cleancos-logo.jpg" alt="Clean’Cos" width="595" height="595"><span class="admin-brand-copy">Clean’Cos<br><small>ADMINISTRATION</small></span></a>
         <nav class="admin-sidebar-navigation" aria-label="Navigation principale">
           <section v-for="group in navigationGroups" :key="group.label" class="admin-nav-group" :aria-label="group.label">
             <p class="admin-nav-group-label">{{ group.label }}</p>
@@ -189,7 +189,7 @@ const Shell = {
         </nav>
         <footer class="admin-profile"><span>Administration</span><button class="text-link" type="button" @click="openPasswordModal($event)">Mot de passe</button><button class="text-link" type="button" @click="logout">Déconnexion</button></footer>
       </aside>
-      <main><div class="admin-topbar"><span>ToutDispo</span><small>Back-office sécurisé</small></div><RouterView v-slot="{ Component }"><Transition name="admin-page" mode="out-in"><component :is="Component" /></Transition></RouterView></main>
+      <main><div class="admin-topbar"><span>Clean’Cos</span><small>Back-office sécurisé</small></div><RouterView v-slot="{ Component }"><Transition name="admin-page" mode="out-in"><component :is="Component" /></Transition></RouterView></main>
       <TransitionGroup name="admin-toast" tag="div" class="admin-toast-stack" aria-live="polite" aria-relevant="additions">
         <article v-for="toast in toasts" :key="toast.id" class="admin-toast" :class="'is-' + toast.tone" role="status">
           <span class="admin-toast-mark" aria-hidden="true">{{ toast.tone === 'success' ? '✓' : toast.tone === 'info' ? 'i' : '!' }}</span>

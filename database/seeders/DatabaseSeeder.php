@@ -18,6 +18,21 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Test User', 'password' => Hash::make('password')],
         );
 
+        $testSuperAdminPassword = config('app.test_super_admin_password');
+        if (is_string($testSuperAdminPassword) && mb_strlen($testSuperAdminPassword) >= 12) {
+            User::query()->updateOrCreate(
+                ['email' => 'superadmin.test@cleancos.test'],
+                [
+                    'name' => 'Super Admin Test',
+                    'password' => Hash::make($testSuperAdminPassword),
+                    'role' => 'super_admin',
+                    'is_active' => true,
+                    'force_password_change' => true,
+                    'auth_version' => 1,
+                ],
+            );
+        }
+
         $this->call(DemoPlatformSeeder::class);
     }
 }
