@@ -8,6 +8,10 @@ use App\Http\Controllers\Api\Admin\CheckoutFieldController as AdminCheckoutField
 use App\Http\Controllers\Api\Admin\ComplaintController;
 use App\Http\Controllers\Api\Admin\CurrentUserController;
 use App\Http\Controllers\Api\Admin\CustomerController;
+use App\Http\Controllers\Api\Admin\FirstDeliveryConfigurationController;
+use App\Http\Controllers\Api\Admin\FirstDeliveryDeliveryController;
+use App\Http\Controllers\Api\Admin\FirstDeliveryLocalityController;
+use App\Http\Controllers\Api\Admin\FirstDeliveryShipmentController;
 use App\Http\Controllers\Api\Admin\HeroSlideController;
 use App\Http\Controllers\Api\Admin\HomepageItemController;
 use App\Http\Controllers\Api\Admin\HomepageSectionController;
@@ -115,6 +119,12 @@ Route::prefix('v1/admin')->middleware(['web', 'auth', 'can:catalog.manage'])->gr
     Route::post('orders/{order}/navex/reconcile', [NavexShipmentController::class, 'reconcile'])->middleware('throttle:5,1');
     Route::post('orders/{order}/navex/retry', [NavexShipmentController::class, 'retry'])->middleware('throttle:5,1');
     Route::post('orders/{order}/navex/cancel', [NavexShipmentController::class, 'cancel'])->middleware('throttle:5,1');
+    Route::post('orders/{order}/first-delivery/send', [FirstDeliveryShipmentController::class, 'send'])->middleware('throttle:10,1');
+    Route::post('orders/{order}/first-delivery/synchronize', [FirstDeliveryShipmentController::class, 'synchronize'])->middleware('throttle:10,1');
+    Route::post('orders/{order}/first-delivery/retry', [FirstDeliveryShipmentController::class, 'retry'])->middleware('throttle:5,1');
+    Route::post('orders/{order}/first-delivery/cancel', [FirstDeliveryShipmentController::class, 'cancel'])->middleware('throttle:5,1');
+    Route::get('first-delivery/deliveries', [FirstDeliveryDeliveryController::class, 'index']);
+    Route::get('first-delivery/localities', FirstDeliveryLocalityController::class)->middleware('throttle:60,1');
     Route::get('navex/deliveries', [NavexDeliveryController::class, 'index']);
     Route::post('orders/bulk-archive', [OrderController::class, 'bulkArchive']);
     Route::post('orders/bulk-restore', [OrderController::class, 'bulkRestore']);
@@ -146,6 +156,10 @@ Route::prefix('v1/admin')->middleware(['web', 'auth', 'can:store.manage'])->grou
     Route::post('navex/configuration', [NavexConfigurationController::class, 'store'])->middleware('throttle:20,1');
     Route::post('navex/configuration/{configuration}/test', [NavexConfigurationController::class, 'test'])->middleware('throttle:10,1');
     Route::delete('navex/configuration/credentials/{credential}', [NavexConfigurationController::class, 'removeCredential'])->middleware('throttle:5,1');
+    Route::get('first-delivery/configuration', [FirstDeliveryConfigurationController::class, 'show']);
+    Route::post('first-delivery/configuration', [FirstDeliveryConfigurationController::class, 'store'])->middleware('throttle:20,1');
+    Route::post('first-delivery/configuration/{configuration}/test', [FirstDeliveryConfigurationController::class, 'test'])->middleware('throttle:10,1');
+    Route::delete('first-delivery/configuration/token', [FirstDeliveryConfigurationController::class, 'removeToken'])->middleware('throttle:5,1');
     Route::get('meta/diagnostics', [MetaDiagnosticsController::class, 'index']);
     Route::get('meta/diagnostics/{event}', [MetaDiagnosticsController::class, 'show']);
     Route::post('meta/diagnostics/{event}/retry', [MetaDiagnosticsController::class, 'retry'])->middleware('throttle:5,15');

@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Checkout\Actions\PruneExpiredCheckoutIdempotencyRecordsAction;
+use App\Domain\FirstDelivery\Actions\SynchronizeFirstDeliveryShipmentsAction;
 use App\Domain\MetaTracking\Actions\RequeuePendingMetaEventsAction;
 use App\Domain\Navex\Actions\SynchronizeNavexShipmentsAction;
 use App\Domain\Operations\Services\OperationalHealth;
@@ -28,6 +29,11 @@ Artisan::command('navex:synchronize {--limit=50} {--include-old}', function () {
     $this->line("Synchronized {$count} Navex shipments.");
 })->purpose('Synchronize active Navex shipments in batches');
 
+Artisan::command('first-delivery:synchronize {--limit=20} {--include-old}', function () {
+    $count = app(SynchronizeFirstDeliveryShipmentsAction::class)->handle((int) $this->option('limit'), (bool) $this->option('include-old'));
+    $this->line("Queued {$count} First Delivery shipments for synchronization.");
+})->purpose('Synchronize active First Delivery shipments in batches');
+
 Schedule::call(fn () => app(OperationalHealth::class)->touchScheduler())->name('operational:scheduler-heartbeat')->everyMinute()->withoutOverlapping(2)->onOneServer();
 Schedule::call(fn () => OperationalQueueHeartbeatJob::dispatch())->name('operational:queue-heartbeat')->everyMinute()->withoutOverlapping(2)->onOneServer();
 Schedule::command('meta:requeue-pending')->name('meta:requeue-pending')->everyMinute()->withoutOverlapping(2)->onOneServer();
@@ -36,6 +42,12 @@ Schedule::command('navex:synchronize --limit='.max(1, (int) config('navex.sync_b
     ->name('navex:synchronize')
     ->cron('*/'.$navexSyncMinutes.' * * * *')
     ->withoutOverlapping($navexSyncMinutes)
+    ->onOneServer();
+$firstDeliverySyncMinutes = max(1, min(59, (int) config('first_delivery.sync_interval_minutes', 15)));
+Schedule::command('first-delivery:synchronize --limit='.max(1, (int) config('first_delivery.sync_batch_size', 20)))
+    ->name('first-delivery:synchronize')
+    ->cron('*/'.$firstDeliverySyncMinutes.' * * * *')
+    ->withoutOverlapping($firstDeliverySyncMinutes)
     ->onOneServer();
 Schedule::command('checkout-idempotency:prune-expired')->dailyAt('03:05')->withoutOverlapping(60)->onOneServer();
 Schedule::command('maintenance:prune-operational-data')

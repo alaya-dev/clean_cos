@@ -238,6 +238,7 @@ const router = createRouter({
         { path: '/promotions', component: () => import('./promotions') },
         { path: '/shipping', component: () => import('./shipping-settings') },
         { path: '/navex', component: () => import('./navex') },
+        { path: '/first-delivery', component: () => import('./first-delivery') },
         { path: '/checkout-fields', component: () => import('./checkout-fields') },
         { path: '/content', component: () => import('./content') },
         { path: '/static-pages', component: () => import('./static-pages') },

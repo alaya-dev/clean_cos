@@ -16,6 +16,7 @@ use App\Domain\Commerce\Models\Order;
 use App\Domain\Commerce\Models\OrderChangeEvent;
 use App\Domain\Commerce\Models\OrderItem;
 use App\Domain\Commerce\Support\OrderStatusFlow;
+use App\Domain\FirstDelivery\Services\FirstDeliveryShipmentService;
 use App\Domain\Navex\Enums\NavexDeliveryStatus;
 use App\Domain\Navex\Services\NavexShipmentPayloadFactory;
 use App\Domain\Navex\Services\NavexShipmentService;
@@ -83,14 +84,20 @@ class OrderController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $data = $request->validate(['search' => ['nullable', 'string', 'max:180'], 'product_public_id' => ['nullable', 'ulid'], 'status' => ['nullable', Rule::in(OrderStatusFlow::STATUSES)], 'statuses' => ['nullable', 'array', 'max:3'], 'statuses.*' => [Rule::in(OrderStatusFlow::STATUSES)], 'navex_status' => ['nullable', 'in:'.implode(',', array_map(fn (NavexDeliveryStatus $status): string => $status->value, NavexDeliveryStatus::cases()))], 'navex_sent' => ['nullable', 'boolean'], 'navex_action_required' => ['nullable', 'boolean'], 'archived' => ['nullable', 'boolean'], 'date_from' => ['nullable', 'date'], 'date_to' => ['nullable', 'date'], 'min_total_millimes' => ['nullable', 'integer', 'min:0'], 'max_total_millimes' => ['nullable', 'integer', 'min:0'], 'sort' => ['nullable', 'in:created_at,-created_at,total_millimes,-total_millimes,status,customer_name'], 'per_page' => ['nullable', 'integer', 'between:1,100']]);
+        $data = $request->validate(['search' => ['nullable', 'string', 'max:180'], 'product_public_id' => ['nullable', 'ulid'], 'status' => ['nullable', Rule::in(OrderStatusFlow::STATUSES)], 'statuses' => ['nullable', 'array', 'max:3'], 'statuses.*' => [Rule::in(OrderStatusFlow::STATUSES)], 'navex_status' => ['nullable', 'in:'.implode(',', array_map(fn (NavexDeliveryStatus $status): string => $status->value, NavexDeliveryStatus::cases()))], 'navex_sent' => ['nullable', 'boolean'], 'navex_action_required' => ['nullable', 'boolean'], 'delivery_provider' => ['nullable', Rule::in(['navex', 'first_delivery'])], 'archived' => ['nullable', 'boolean'], 'date_from' => ['nullable', 'date'], 'date_to' => ['nullable', 'date'], 'min_total_millimes' => ['nullable', 'integer', 'min:0'], 'max_total_millimes' => ['nullable', 'integer', 'min:0'], 'sort' => ['nullable', 'in:created_at,-created_at,total_millimes,-total_millimes,status,customer_name'], 'per_page' => ['nullable', 'integer', 'between:1,100']]);
         $query = Order::query()->withCount('items')->with([
             'navexShipment:id,order_id,status,tracking_code,raw_status,last_synchronized_at,last_error_classification',
+            'firstDeliveryShipment:id,order_id,local_status,barcode,remote_state_code,remote_state,last_synced_at,last_error',
             'items.product.images' => fn ($images) => $images
                 ->select(['id', 'product_id', 'path', 'renditions', 'processing_status', 'is_primary', 'sort_order'])
                 ->where('is_primary', true),
         ]);
         ($data['archived'] ?? false) ? $query->whereNotNull('archived_at') : $query->whereNull('archived_at');
+        if (($data['delivery_provider'] ?? null) === 'navex') {
+            $query->whereHas('navexShipment');
+        } elseif (($data['delivery_provider'] ?? null) === 'first_delivery') {
+            $query->whereHas('firstDeliveryShipment');
+        }
         if ($data['navex_status'] ?? null) {
             $query->whereHas('navexShipment', fn ($shipment) => $shipment->where('status', $data['navex_status']));
         }
@@ -138,8 +145,23 @@ class OrderController extends Controller
                 ->unique()
                 ->values()
                 ->all());
-            $shipment = $order->navexShipment;
-            $order->setAttribute('navex_delivery', $shipment ? ['status' => $shipment->status->value, 'label' => $shipment->display_status_label, 'tracking_code' => $shipment->tracking_code] : null);
+            $navexShipment = $order->navexShipment;
+            $firstDeliveryShipment = $order->firstDeliveryShipment;
+            $order->setAttribute('navex_delivery', $navexShipment ? ['status' => $navexShipment->status->value, 'label' => $navexShipment->display_status_label, 'tracking_code' => $navexShipment->tracking_code] : null);
+            $order->setAttribute('delivery', $firstDeliveryShipment ? [
+                'provider' => 'first_delivery',
+                'provider_label' => 'First Delivery',
+                'status' => $firstDeliveryShipment->local_status->value,
+                'label' => $firstDeliveryShipment->local_status->label(),
+                'tracking_code' => $firstDeliveryShipment->barcode,
+            ] : ($navexShipment ? [
+                'provider' => 'navex',
+                'provider_label' => 'Navex',
+                'status' => $navexShipment->status->value,
+                'label' => $navexShipment->display_status_label,
+                'tracking_code' => $navexShipment->tracking_code,
+            ] : null));
+            $order->unsetRelation('firstDeliveryShipment');
             $order->unsetRelation('items');
 
             return $order;
@@ -241,7 +263,7 @@ class OrderController extends Controller
         ]]);
     }
 
-    public function show(Order $order, NavexShipmentService $navex, NavexShipmentPayloadFactory $payloads): JsonResponse
+    public function show(Order $order, NavexShipmentService $navex, FirstDeliveryShipmentService $firstDelivery, NavexShipmentPayloadFactory $payloads): JsonResponse
     {
         $order->load([
             'items.product.variants.values',
@@ -254,14 +276,33 @@ class OrderController extends Controller
             'statusHistory.changedBy:id,public_id,name,role',
             'notes',
             'navexShipment.statusHistory',
+            'firstDeliveryShipment.statusHistory',
+            'firstDeliveryLocality',
         ]);
 
         $shipment = $order->navexShipment;
         $shipmentTracked = $shipment?->hasTrackingCode() ?? false;
+        $firstDeliveryShipment = $order->firstDeliveryShipment;
 
         $order->setAttribute('designation', $payloads->designation($order));
 
-        return response()->json(['data' => ['order' => $order, 'is_editable' => OrderStatusFlow::canEditItems($order->status), 'is_delivery_editable' => true, 'allowed_transitions' => $this->transitions($order->status), 'navex' => ['ready' => $navex->ready($order), 'shipment' => $shipment, 'manual_update_required' => $shipmentTracked], 'meta_purchase' => ['event_id' => $order->meta_event_id, 'status' => 'not_configured']]]);
+        return response()->json(['data' => [
+            'order' => $order,
+            'is_editable' => OrderStatusFlow::canEditItems($order->status),
+            'is_delivery_editable' => true,
+            'allowed_transitions' => $this->transitions($order->status),
+            'navex' => [
+                'ready' => $navex->ready($order),
+                'shipment' => $shipment,
+                'manual_update_required' => $shipmentTracked,
+            ],
+            'first_delivery' => [
+                'ready' => $firstDelivery->ready($order),
+                'shipment' => $firstDeliveryShipment,
+                'manual_update_required' => filled($firstDeliveryShipment?->barcode),
+            ],
+            'meta_purchase' => ['event_id' => $order->meta_event_id, 'status' => 'not_configured'],
+        ]]);
     }
 
     public function availableProducts(Request $request): JsonResponse
@@ -307,9 +348,9 @@ class OrderController extends Controller
 
     public function update(Request $request, Order $order, UpdateOrderCustomerAction $action, RecordAuditEventAction $audit): JsonResponse
     {
-        $data = $request->validate(['lock_version' => ['required', 'integer', 'min:1'], 'customer.full_name' => ['required', 'string', 'between:2,180'], 'customer.phone' => ['required', 'string', 'max:40'], 'customer.city' => ['required', 'string', 'between:2,160'], 'customer.governorate' => ['nullable', 'string', 'between:2,80', Rule::in(TunisianGovernorates::ALL)], 'customer.address' => ['required', 'string', 'between:5,2000'], 'customer.is_exchange' => ['sometimes'], 'customer.exchange_article_designation' => ['nullable', 'string', 'max:500'], 'customer.exchange_article_count' => ['nullable'], 'exchange' => ['sometimes', 'array'], 'exchange.is_exchange' => ['sometimes'], 'exchange.article_designation' => ['nullable', 'string', 'max:500'], 'exchange.article_count' => ['nullable']]);
+        $data = $request->validate(['lock_version' => ['required', 'integer', 'min:1'], 'customer.full_name' => ['required', 'string', 'between:2,180'], 'customer.phone' => ['required', 'string', 'max:40'], 'customer.city' => ['required', 'string', 'between:2,160'], 'customer.governorate' => ['nullable', 'string', 'between:2,80', Rule::in(TunisianGovernorates::ALL)], 'customer.first_delivery_locality_id' => ['nullable', 'integer', 'exists:first_delivery_localities,locality_id'], 'customer.address' => ['required', 'string', 'between:5,2000'], 'customer.is_exchange' => ['sometimes'], 'customer.exchange_article_designation' => ['nullable', 'string', 'max:500'], 'customer.exchange_article_count' => ['nullable'], 'exchange' => ['sometimes', 'array'], 'exchange.is_exchange' => ['sometimes'], 'exchange.article_designation' => ['nullable', 'string', 'max:500'], 'exchange.article_count' => ['nullable']]);
         try {
-            $before = $order->only(['customer_name', 'customer_phone', 'customer_city', 'customer_governorate', 'customer_address', 'is_exchange', 'exchange_article_designation', 'exchange_article_count']);
+            $before = $order->only(['customer_name', 'customer_phone', 'customer_city', 'customer_governorate', 'first_delivery_locality_id', 'customer_address', 'is_exchange', 'exchange_article_designation', 'exchange_article_count']);
             $exchange = null;
             if (array_key_exists('exchange', $data)) {
                 $exchange = $data['exchange'];

@@ -44,7 +44,7 @@ class RecordAuditEventAction
         $sanitized = [];
         foreach ($values as $key => $value) {
             $normalizedKey = strtolower((string) $key);
-            if (in_array($normalizedKey, $hidden, true) || str_contains($normalizedKey, 'credential')) {
+            if (in_array($normalizedKey, $hidden, true) || str_contains($normalizedKey, 'credential') || str_ends_with($normalizedKey, '_token')) {
                 continue;
             }
 

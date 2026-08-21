@@ -3,6 +3,7 @@
 namespace App\Domain\Navex\Services;
 
 use App\Domain\Commerce\Models\Order;
+use App\Domain\FirstDelivery\Enums\FirstDeliveryStatus;
 use App\Domain\Navex\Enums\NavexDeliveryStatus;
 use App\Domain\Navex\Models\NavexShipment;
 use App\Jobs\CreateNavexShipmentJob;
@@ -20,9 +21,12 @@ class NavexShipmentService
     public function queue(Order $order, string $creationMode): NavexShipment
     {
         return DB::transaction(function () use ($order, $creationMode): NavexShipment {
-            $order = Order::query()->with(['items', 'checkoutValues', 'navexShipment'])->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $order = Order::query()->with(['items', 'checkoutValues', 'navexShipment', 'firstDeliveryShipment'])->whereKey($order->id)->lockForUpdate()->firstOrFail();
             if ($order->status !== 'confirmee') {
                 throw ValidationException::withMessages(['order' => 'Seules les commandes confirmées peuvent être envoyées à Navex.']);
+            }
+            if ($order->firstDeliveryShipment !== null && $order->firstDeliveryShipment->local_status !== FirstDeliveryStatus::Cancelled) {
+                throw ValidationException::withMessages(['provider' => 'Cette commande possède déjà une expédition First Delivery.']);
             }
             if (blank($order->customer_governorate)) {
                 throw ValidationException::withMessages(['governorate' => 'Le colis n’a pas été envoyé, car le gouvernorat est manquant.']);
@@ -91,6 +95,9 @@ class NavexShipmentService
         $reasons = [];
         if ($order->status !== 'confirmee') {
             $reasons[] = 'La commande doit être confirmée.';
+        }
+        if ($order->firstDeliveryShipment()->where('local_status', '!=', FirstDeliveryStatus::Cancelled->value)->exists()) {
+            $reasons[] = 'Une expédition First Delivery existe déjà.';
         }
         if (blank($order->customer_governorate)) {
             $reasons[] = 'Le gouvernorat est manquant.';

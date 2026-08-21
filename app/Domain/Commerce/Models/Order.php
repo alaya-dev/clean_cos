@@ -3,6 +3,8 @@
 namespace App\Domain\Commerce\Models;
 
 use App\Domain\Checkout\Models\CheckoutIdempotencyRecord;
+use App\Domain\FirstDelivery\Models\FirstDeliveryLocality;
+use App\Domain\FirstDelivery\Models\FirstDeliveryShipment;
 use App\Domain\Navex\Models\NavexShipment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,7 +18,7 @@ class Order extends Model
     protected $fillable = [
         'checkout_idempotency_key', 'checkout_payload_hash', 'status', 'customer_name', 'customer_phone',
         'customer_id', 'customer_previous_order_at',
-        'customer_city', 'customer_governorate', 'customer_address', 'subtotal_millimes', 'product_discount_millimes',
+        'customer_city', 'customer_governorate', 'first_delivery_locality_id', 'customer_address', 'subtotal_millimes', 'product_discount_millimes',
         'is_exchange', 'exchange_article_designation', 'exchange_article_count',
         'promo_code_discount_millimes', 'shipping_fee_millimes', 'total_millimes', 'manual_total_millimes', 'promo_code_id',
         'promo_code_snapshot', 'lock_version', 'archived_at',
@@ -98,6 +100,18 @@ class Order extends Model
     public function navexShipment(): HasOne
     {
         return $this->hasOne(NavexShipment::class);
+    }
+
+    /** @return HasOne<FirstDeliveryShipment, $this> */
+    public function firstDeliveryShipment(): HasOne
+    {
+        return $this->hasOne(FirstDeliveryShipment::class);
+    }
+
+    /** @return BelongsTo<FirstDeliveryLocality, $this> */
+    public function firstDeliveryLocality(): BelongsTo
+    {
+        return $this->belongsTo(FirstDeliveryLocality::class, 'first_delivery_locality_id', 'locality_id');
     }
 
     /** @return BelongsTo<Customer, $this> */

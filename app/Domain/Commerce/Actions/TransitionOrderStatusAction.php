@@ -8,6 +8,8 @@ use App\Domain\Catalog\Models\Product;
 use App\Domain\Catalog\Models\ProductVariant;
 use App\Domain\Commerce\Models\Order;
 use App\Domain\Commerce\Support\OrderStatusFlow;
+use App\Domain\FirstDelivery\Enums\FirstDeliveryStatus;
+use App\Domain\FirstDelivery\Services\FirstDeliveryShipmentService;
 use App\Domain\Navex\Enums\NavexDeliveryStatus;
 use App\Domain\Navex\Services\NavexShipmentService;
 use App\Domain\Orders\Actions\RestoreOrderStockOnceAction;
@@ -22,6 +24,7 @@ class TransitionOrderStatusAction
         private readonly RestoreOrderStockOnceAction $restoreStock,
         private readonly RecordAuditEventAction $audit,
         private readonly NavexShipmentService $navexShipments,
+        private readonly FirstDeliveryShipmentService $firstDeliveryShipments,
     ) {}
 
     public function handle(Order $order, string $toStatus, ?string $reason, int $actorId): Order
@@ -34,6 +37,9 @@ class TransitionOrderStatusAction
 
             if ($toStatus === 'annulee' && $order->navexShipment()->where('status', '!=', NavexDeliveryStatus::Cancelled->value)->exists()) {
                 throw ValidationException::withMessages(['status' => 'Annulez d’abord le colis Navex avant d’annuler cette commande.']);
+            }
+            if ($toStatus === 'annulee' && $order->firstDeliveryShipment()->where('local_status', '!=', FirstDeliveryStatus::Cancelled->value)->exists()) {
+                throw ValidationException::withMessages(['status' => 'Annulez d’abord l’expédition First Delivery avant d’annuler cette commande.']);
             }
 
             $fromStatus = $order->status;
@@ -58,6 +64,11 @@ class TransitionOrderStatusAction
             if ($toStatus === 'confirmee') {
                 try {
                     $this->navexShipments->queue($updated, 'automatic');
+                } catch (ValidationException) {
+                    // Delivery configuration or an existing shipment must never roll back the status change.
+                }
+                try {
+                    $this->firstDeliveryShipments->queue($updated, 'automatic');
                 } catch (ValidationException) {
                     // Delivery configuration or an existing shipment must never roll back the status change.
                 }

@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
                 ['email' => 'superadmin.test@cleancos.test'],
                 [
                     'name' => 'Super Admin Test',
-                    'password' => Hash::make($testSuperAdminPassword),
+                    'password' => Hash::make('password'),
                     'role' => 'super_admin',
                     'is_active' => true,
                     'force_password_change' => true,

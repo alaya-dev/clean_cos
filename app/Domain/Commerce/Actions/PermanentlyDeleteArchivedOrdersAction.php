@@ -4,6 +4,8 @@ namespace App\Domain\Commerce\Actions;
 
 use App\Domain\Audit\Actions\RecordAuditEventAction;
 use App\Domain\Commerce\Models\Order;
+use App\Domain\FirstDelivery\Enums\FirstDeliveryStatus;
+use App\Domain\FirstDelivery\Models\FirstDeliveryShipment;
 use App\Domain\MetaTracking\Models\MetaEvent;
 use App\Domain\Navex\Enums\NavexDeliveryStatus;
 use App\Domain\Navex\Models\NavexShipment;
@@ -44,6 +46,10 @@ class PermanentlyDeleteArchivedOrdersAction
             $orderIds = $orders->modelKeys();
             $orders->loadCount('items');
             $shipments = NavexShipment::query()->whereIn('order_id', $orderIds)->lockForUpdate()->get();
+            $firstDeliveryShipments = FirstDeliveryShipment::query()
+                ->whereIn('order_id', $orderIds)
+                ->lockForUpdate()
+                ->get();
             $hasInFlightMetaDelivery = MetaEvent::query()
                 ->whereIn('order_id', $orderIds)
                 ->whereIn('capi_state', ['pending', 'sending', 'temporary_failure'])
@@ -60,6 +66,15 @@ class PermanentlyDeleteArchivedOrdersAction
             if ($activeShipment instanceof NavexShipment) {
                 throw ValidationException::withMessages([
                     'references' => 'Cette commande est encore active chez Navex ('.$activeShipment->status->label().'). Annulez d’abord le colis dans Livraison Navex et attendez la confirmation avant de supprimer la commande.',
+                ]);
+            }
+
+            $activeFirstDeliveryShipment = $firstDeliveryShipments->first(
+                fn (FirstDeliveryShipment $shipment): bool => ! $this->firstDeliveryShipmentCanBeRemoved($shipment),
+            );
+            if ($activeFirstDeliveryShipment instanceof FirstDeliveryShipment) {
+                throw ValidationException::withMessages([
+                    'references' => 'Cette commande est encore active chez First Delivery ('.$activeFirstDeliveryShipment->local_status->label().'). Annulez d’abord le colis dans Livraison First Delivery et attendez la confirmation avant de supprimer la commande.',
                 ]);
             }
 
@@ -97,6 +112,7 @@ class PermanentlyDeleteArchivedOrdersAction
             DB::table('order_checkout_values')->whereIn('order_id', $orderIds)->delete();
             MetaEvent::query()->whereIn('order_id', $orderIds)->delete();
             NavexShipment::query()->whereIn('id', $shipments->modelKeys())->delete();
+            FirstDeliveryShipment::query()->whereIn('id', $firstDeliveryShipments->modelKeys())->delete();
             DB::table('order_items')->whereIn('order_id', $orderIds)->delete();
             foreach ($orders as $order) {
                 $order->delete();
@@ -119,6 +135,23 @@ class PermanentlyDeleteArchivedOrdersAction
         return in_array($shipment->status, [
             NavexDeliveryStatus::NotSent,
             NavexDeliveryStatus::SynchronizationError,
+        ], true);
+    }
+
+    private function firstDeliveryShipmentCanBeRemoved(FirstDeliveryShipment $shipment): bool
+    {
+        if ($shipment->local_status->terminal()) {
+            return true;
+        }
+
+        if (filled($shipment->barcode)) {
+            return false;
+        }
+
+        return in_array($shipment->local_status, [
+            FirstDeliveryStatus::NotSent,
+            FirstDeliveryStatus::PendingSend,
+            FirstDeliveryStatus::SynchronizationError,
         ], true);
     }
 }

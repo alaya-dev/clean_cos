@@ -3621,3 +3621,29 @@ GET  /api/v1/admin/meta/diagnostics/{event}
 POST /api/v1/admin/meta/diagnostics/{event}/retry
 GET  /api/v1/admin/dashboard
 GET  /api/v1/admin/operational-health
+
+
+---
+
+## 35. First Delivery
+
+Configuration access is Super Admin only; order and delivery operations use the existing authenticated catalog-management boundary.
+
+```text
+GET    /api/v1/admin/first-delivery/configuration
+POST   /api/v1/admin/first-delivery/configuration
+POST   /api/v1/admin/first-delivery/configuration/{configuration}/test
+DELETE /api/v1/admin/first-delivery/configuration/token
+
+GET    /api/v1/admin/first-delivery/localities
+GET    /api/v1/admin/first-delivery/deliveries
+
+POST   /api/v1/admin/orders/{order}/first-delivery/send
+POST   /api/v1/admin/orders/{order}/first-delivery/synchronize
+POST   /api/v1/admin/orders/{order}/first-delivery/retry
+POST   /api/v1/admin/orders/{order}/first-delivery/cancel
+```
+
+Configuration writes accept `mode`, the official `api_base_url`, and an optional `first_delivery_token`. A blank token preserves the encrypted current value. Responses never return token material; they return only `token_configured`, `token_masked`, readiness, and safe test metadata.
+
+Shipment creation requires `confirm_send=true`; retry requires `confirm_retry=true`; cancellation requires `confirm_cancellation=true`. The order list accepts `delivery_provider=navex|first_delivery` and returns a generic `delivery` object with provider, provider label, local provider status, display label, and tracking code/barcode.

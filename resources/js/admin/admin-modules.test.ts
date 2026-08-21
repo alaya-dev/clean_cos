@@ -12,7 +12,7 @@ import {
 
 describe('admin operational modules', () => {
     it('exports the catalogue, inventory, order list, and order detail views', () => {
-        for (const file of ['products', 'inventory', 'orders', 'order-detail', 'select-control', 'users', 'audit-logs']) {
+        for (const file of ['products', 'inventory', 'orders', 'order-detail', 'select-control', 'first-delivery', 'users', 'audit-logs']) {
             const source = readFileSync(`resources/js/admin/${file}.ts`, 'utf8');
             expect(source).toMatch(/export (default|const)/);
         }
@@ -127,6 +127,24 @@ describe('admin operational modules', () => {
 
         expect(navex).toContain('display_status_label');
         expect(detail).toContain('display_status_label');
+    });
+
+    it('exposes the secure First Delivery token, locality, shipment, and provider-selection flow', () => {
+        const delivery = readFileSync('resources/js/admin/first-delivery.ts', 'utf8');
+        const detail = readFileSync('resources/js/admin/order-detail.ts', 'utf8');
+        const list = readFileSync('resources/js/admin/orders.ts', 'utf8');
+        const shell = readFileSync('resources/js/admin/main.ts', 'utf8');
+
+        expect(delivery).toContain('type="password"');
+        expect(delivery).toContain('token_masked');
+        expect(delivery).toContain('Tester et synchroniser les localités');
+        expect(delivery).toContain('<SelectControl');
+        expect(detail).toContain('first_delivery_locality_id');
+        expect(detail).toContain('Imprimer le bordereau');
+        expect(detail).toContain('cancelFirstDelivery');
+        expect(list).toContain('delivery_provider');
+        expect(list).toContain('provider_label');
+        expect(shell).toContain("path: '/first-delivery'");
     });
 
     it('manages feedback state through shared dialogs and toasts', async () => {
