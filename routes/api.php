@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Admin\CustomerController;
 use App\Http\Controllers\Api\Admin\FirstDeliveryConfigurationController;
 use App\Http\Controllers\Api\Admin\FirstDeliveryDeliveryController;
 use App\Http\Controllers\Api\Admin\FirstDeliveryLocalityController;
+use App\Http\Controllers\Api\Admin\FirstDeliveryPickupController;
 use App\Http\Controllers\Api\Admin\FirstDeliveryShipmentController;
 use App\Http\Controllers\Api\Admin\HeroSlideController;
 use App\Http\Controllers\Api\Admin\HomepageItemController;
@@ -125,6 +126,10 @@ Route::prefix('v1/admin')->middleware(['web', 'auth', 'can:catalog.manage'])->gr
     Route::post('orders/{order}/first-delivery/cancel', [FirstDeliveryShipmentController::class, 'cancel'])->middleware('throttle:5,1');
     Route::get('first-delivery/deliveries', [FirstDeliveryDeliveryController::class, 'index']);
     Route::get('first-delivery/localities', FirstDeliveryLocalityController::class)->middleware('throttle:60,1');
+    Route::get('first-delivery/pickups', [FirstDeliveryPickupController::class, 'index']);
+    Route::post('first-delivery/pickups', [FirstDeliveryPickupController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('first-delivery/pickups/{pickup}/retry', [FirstDeliveryPickupController::class, 'retry'])->middleware('throttle:5,1');
+    Route::post('first-delivery/pickups/{pickup}/refresh-print', [FirstDeliveryPickupController::class, 'refreshPrint'])->middleware('throttle:10,1');
     Route::get('navex/deliveries', [NavexDeliveryController::class, 'index']);
     Route::post('orders/bulk-archive', [OrderController::class, 'bulkArchive']);
     Route::post('orders/bulk-restore', [OrderController::class, 'bulkRestore']);

@@ -3637,6 +3637,10 @@ DELETE /api/v1/admin/first-delivery/configuration/token
 
 GET    /api/v1/admin/first-delivery/localities
 GET    /api/v1/admin/first-delivery/deliveries
+GET    /api/v1/admin/first-delivery/pickups
+POST   /api/v1/admin/first-delivery/pickups
+POST   /api/v1/admin/first-delivery/pickups/{pickup}/retry
+POST   /api/v1/admin/first-delivery/pickups/{pickup}/refresh-print
 
 POST   /api/v1/admin/orders/{order}/first-delivery/send
 POST   /api/v1/admin/orders/{order}/first-delivery/synchronize
@@ -3647,3 +3651,5 @@ POST   /api/v1/admin/orders/{order}/first-delivery/cancel
 Configuration writes accept `mode`, the official `api_base_url`, and an optional `first_delivery_token`. A blank token preserves the encrypted current value. Responses never return token material; they return only `token_configured`, `token_masked`, readiness, and safe test metadata.
 
 Shipment creation requires `confirm_send=true`; retry requires `confirm_retry=true`; cancellation requires `confirm_cancellation=true`. The order list accepts `delivery_provider=navex|first_delivery` and returns a generic `delivery` object with provider, provider label, local provider status, display label, and tracking code/barcode.
+
+Pickup creation accepts `shipment_public_ids` as 1–100 distinct shipment ULIDs plus `confirm_creation=true`, validates every shipment against verified provider state `0`, persists a local manifest, and returns `202`. Delivery rows include `pickup_eligible`, `pickup_eligibility_reason`, and safe pickup metadata. Pickup retry requires `confirm_retry=true` and is forbidden after an uncertain remote result. Print refresh requires `confirm_refresh=true` and queues the documented `POST /request-print/{pickupId}` operation.

@@ -18,6 +18,8 @@ The fixed default base URL is `https://www.firstdeliverygroup.com/api/v2`.
 | Create one order | POST | `/create` | `Client` and `Produit` objects |
 | Read one status | POST | `/etat` | `{"barCode":"..."}` |
 | Cancel pending orders | POST | `/cancel-orders` | `{"barCodes":["..."]}` |
+| Create pickup manifest | POST | `/pickup` | `{"barCodes":["..."]}` |
+| Refresh pickup receipt | POST | `/request-print/{pickupId}` | none |
 
 Every request uses `Authorization: Bearer {token}`, `Accept: application/json`, and JSON encoding. The token is never placed in the path or query string.
 
@@ -59,6 +61,16 @@ The complete creation payload is encrypted in `request_snapshot_encrypted` befor
 7. Cancellation is available only when the latest provider state code is `0` (En attente). Local cancellation remains blocked until the provider cancellation succeeds.
 
 Provider codes 0, 1, 2, 3, 5, 6, 7, 8, 11, 20, 30, 31, 100–104, and 201–204 map to explicit local delivery statuses. Unknown non-empty states are preserved as safe raw text without inventing a local order transition.
+
+## Pickup manifests
+
+An authenticated order operator can select between 1 and 100 First Delivery shipments whose verified provider state is `0` (`En attente`). Every selected shipment must have a valid 12-digit barcode, no current provider error, and no previous pickup manifest.
+
+CleanCos first persists a local manifest and immutable barcode/order-reference item snapshots, then dispatches `CreateFirstDeliveryPickupJob` on the `integrations` queue. The job calls `POST /pickup`, stores the returned `pickupId` and retains the receipt link only when it is HTTPS on the official provider host. A timeout or ambiguous response becomes `uncertain_result` and is never retried automatically because First Delivery does not expose an idempotency key.
+
+The manifest UI polls only the local asynchronous state. After confirmed creation, the existing rate-limited shipment synchronization jobs verify each selected barcode with `/etat` at two-second intervals. First Delivery exposes no public manifest-status, edit, cancellation, item-removal, or rollback endpoint; CleanCos therefore does not invent those operations.
+
+The returned receipt can be opened directly. When it is absent or expired, **Préparer l’impression** queues `POST /request-print/{pickupId}` and stores a newly validated official link.
 
 ## Operations
 
@@ -105,5 +117,8 @@ The token is intentionally not an environment variable. It is managed through th
 9. Click **Synchroniser** and verify the provider state and timestamp.
 10. For a provider state `En attente`, test cancellation and wait for provider confirmation.
 11. Switch to `Automatique`, confirm a new eligible order, and verify exactly one shipment is queued.
+12. Return to **Livraison → First Delivery**, select one or more verified `En attente` shipments, and click **Créer le manifeste**.
+13. Wait for the worker to display **Manifeste créé**, verify the provider pickup number, and click **Imprimer**.
+14. Verify that the selected shipments become pickup-related and continue to synchronize individually.
 
 Troubleshooting starts with the safe `last_error`, shipment status history, and `first_delivery_shipment_attempts`. Never log or paste the token into a ticket, command, test fixture, or application log.

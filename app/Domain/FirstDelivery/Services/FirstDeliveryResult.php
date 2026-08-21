@@ -17,5 +17,6 @@ final readonly class FirstDeliveryResult
         public int $durationMs,
         public ?string $barcode = null,
         public ?string $printUrl = null,
+        public ?string $pickupId = null,
     ) {}
 }

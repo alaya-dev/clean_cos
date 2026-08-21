@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, ref, type Component } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, type Component } from 'vue';
 import { RouterLink } from 'vue-router';
 import { adminApi } from './api';
 import { confirmAction, showError, showToast } from './feedback';
@@ -23,10 +23,31 @@ type Shipment = {
     status_label: string;
     barcode: string | null;
     remote_state: string | null;
+    remote_state_code: number | null;
     print_url: string | null;
     last_synced_at: string | null;
     created_at: string;
     order: { public_reference: string; customer_name: string; status: string };
+    pickup_eligible: boolean;
+    pickup_eligibility_reason: string | null;
+    pickup: { public_id: string; provider_pickup_id: string | null; status: string; status_label: string } | null;
+};
+type Pickup = {
+    public_id: string;
+    provider_pickup_id: string | null;
+    status: 'pending' | 'creating' | 'created' | 'uncertain_result' | 'failed';
+    status_label: string;
+    print_url: string | null;
+    shipment_count: number;
+    retryable: boolean;
+    print_refresh_pending: boolean;
+    last_error: string | null;
+    print_error: string | null;
+    safe_message: string | null;
+    queued_at: string | null;
+    confirmed_at: string | null;
+    created_at: string | null;
+    items: { barcode: string; order_reference: string }[];
 };
 type Page<T> = { data: T[]; current_page: number; last_page: number; total: number };
 type ShipmentSummary = { pending_send: number; in_delivery: number; delivered_today: number; returned: number; action_required: number };
@@ -61,9 +82,15 @@ const FirstDeliveryView: Component = {
         const page = ref<Page<Shipment> | null>(null);
         const summary = ref<ShipmentSummary | null>(null);
         const loadingShipments = ref(false);
+        const pickupPage = ref<Page<Pickup> | null>(null);
+        const loadingPickups = ref(false);
+        const creatingPickup = ref(false);
+        const selectedShipmentIds = ref<string[]>([]);
         const form = reactive({ mode: 'disabled' as Mode, api_base_url: 'https://www.firstdeliverygroup.com/api/v2', first_delivery_token: '' });
         const filters = reactive({ status: '', action_required: false, page: 1 });
         const canTest = computed(() => Boolean(configuration.value?.token_configured));
+        const eligibleOnPage = computed(() => page.value?.data.filter((shipment) => shipment.pickup_eligible) ?? []);
+        const allEligibleSelected = computed(() => eligibleOnPage.value.length > 0 && eligibleOnPage.value.every((shipment) => selectedShipmentIds.value.includes(shipment.public_id)));
 
         const fill = (value: Configuration | null): void => {
             form.mode = value?.mode ?? 'disabled';
@@ -91,6 +118,66 @@ const FirstDeliveryView: Component = {
             } finally {
                 loadingShipments.value = false;
             }
+        };
+        const loadPickups = async (): Promise<void> => {
+            loadingPickups.value = true;
+            try {
+                const response = await adminApi<{ data: Page<Pickup> }>('first-delivery/pickups?per_page=20');
+                pickupPage.value = response.data;
+            } catch (cause) {
+                showError(cause instanceof Error ? cause.message : 'Chargement des manifestes impossible.');
+            } finally {
+                loadingPickups.value = false;
+            }
+        };
+        const toggleShipment = (publicId: string): void => {
+            selectedShipmentIds.value = selectedShipmentIds.value.includes(publicId)
+                ? selectedShipmentIds.value.filter((id) => id !== publicId)
+                : [...selectedShipmentIds.value, publicId];
+        };
+        const toggleEligiblePage = (): void => {
+            const ids = eligibleOnPage.value.map((shipment) => shipment.public_id);
+            selectedShipmentIds.value = allEligibleSelected.value
+                ? selectedShipmentIds.value.filter((id) => !ids.includes(id))
+                : [...new Set([...selectedShipmentIds.value, ...ids])];
+        };
+        const createPickup = async (): Promise<void> => {
+            if (!selectedShipmentIds.value.length || creatingPickup.value) return;
+            const confirmed = await confirmAction(
+                `Créer un manifeste avec ${selectedShipmentIds.value.length} colis ?`,
+                'First Delivery créera une demande d’enlèvement. Cette opération ne peut pas être annulée depuis CleanCos.',
+                'Créer le manifeste',
+            );
+            if (!confirmed) return;
+            creatingPickup.value = true;
+            try {
+                const response = await adminApi<{ data: { pickup: Pickup; notice: string } }>('first-delivery/pickups', 'POST', {
+                    shipment_public_ids: selectedShipmentIds.value,
+                    confirm_creation: true,
+                });
+                selectedShipmentIds.value = [];
+                showToast('success', response.data.notice);
+                await Promise.all([loadPickups(), loadShipments()]);
+            } catch (cause) {
+                showError(cause instanceof Error ? cause.message : 'Création du manifeste impossible.');
+            } finally {
+                creatingPickup.value = false;
+            }
+        };
+        const retryPickup = async (pickup: Pickup): Promise<void> => {
+            if (!await confirmAction('Relancer ce manifeste ?', 'La relance est autorisée car First Delivery a explicitement refusé ou n’a pas reçu la demande.', 'Relancer')) return;
+            try {
+                const response = await adminApi<{ data: { pickup: Pickup; notice: string } }>(`first-delivery/pickups/${pickup.public_id}/retry`, 'POST', { confirm_retry: true });
+                showToast('success', response.data.notice);
+                await loadPickups();
+            } catch (cause) { showError(cause instanceof Error ? cause.message : 'Relance impossible.'); }
+        };
+        const refreshPickupPrint = async (pickup: Pickup): Promise<void> => {
+            try {
+                const response = await adminApi<{ data: { pickup: Pickup; notice: string } }>(`first-delivery/pickups/${pickup.public_id}/refresh-print`, 'POST', { confirm_refresh: true });
+                showToast('success', response.data.notice);
+                await loadPickups();
+            } catch (cause) { showError(cause instanceof Error ? cause.message : 'Préparation du lien impossible.'); }
         };
         const save = async (): Promise<void> => {
             saving.value = true;
@@ -134,10 +221,17 @@ const FirstDeliveryView: Component = {
 
         onMounted(async () => {
             try { await loadConfiguration(); } catch (cause) { showError(cause instanceof Error ? cause.message : 'Chargement First Delivery impossible.'); } finally { loading.value = false; }
-            await loadShipments();
+            await Promise.all([loadShipments(), loadPickups()]);
         });
 
-        return { loading, saving, testing, configuration, editing, page, summary, loadingShipments, form, filters, canTest, modeOptions, modeLabel, statusOptions, save, testConnection, removeToken, cancelEdit, loadShipments };
+        const pickupPoll = window.setInterval(() => {
+            if (pickupPage.value?.data.some((pickup) => ['pending', 'creating'].includes(pickup.status) || pickup.print_refresh_pending)) {
+                void Promise.all([loadPickups(), loadShipments()]);
+            }
+        }, 3000);
+        onBeforeUnmount(() => window.clearInterval(pickupPoll));
+
+        return { loading, saving, testing, configuration, editing, page, summary, loadingShipments, pickupPage, loadingPickups, creatingPickup, selectedShipmentIds, eligibleOnPage, allEligibleSelected, form, filters, canTest, modeOptions, modeLabel, statusOptions, save, testConnection, removeToken, cancelEdit, loadShipments, toggleShipment, toggleEligiblePage, createPickup, retryPickup, refreshPickupPrint };
     },
     template: `<section class="admin-page navex-page first-delivery-page">
       <header class="admin-page-header"><div><p class="admin-eyebrow">Opérations / Livraison</p><h1>First Delivery</h1><p class="admin-subtitle">Configurez le token, synchronisez les localités et suivez chaque colis sans exposer les accès API.</p></div></header>
@@ -153,7 +247,9 @@ const FirstDeliveryView: Component = {
           <footer class="sticky-save-bar"><button v-if="configuration" class="text-link" type="button" @click="cancelEdit">Annuler</button><button class="admin-action" :disabled="saving">{{ saving ? 'Enregistrement…' : 'Enregistrer la configuration' }}</button></footer>
         </form>
 
-        <section class="navex-shipments"><header><div><p class="admin-eyebrow">Suivi des colis</p><h2>Expéditions First Delivery</h2><p>Les statuts locaux sont synchronisés depuis l’API sans modifier le statut commercial de la commande.</p></div></header><div v-if="summary" class="navex-summary-grid"><article><small>En attente d’envoi</small><strong>{{ summary.pending_send }}</strong></article><article><small>En cours de livraison</small><strong>{{ summary.in_delivery }}</strong></article><article><small>Livrées aujourd’hui</small><strong>{{ summary.delivered_today }}</strong></article><article><small>Retournées</small><strong>{{ summary.returned }}</strong></article><article class="is-alert"><small>Actions requises</small><strong>{{ summary.action_required }}</strong></article></div><div class="navex-filters"><label class="toolbar-select"><span>Statut</span><SelectControl v-model="filters.status" :options="statusOptions" @change="loadShipments(1)"/></label><label class="inline-check"><input v-model="filters.action_required" type="checkbox" @change="loadShipments(1)"> Actions requises uniquement</label></div><p v-if="loadingShipments" class="admin-loading">Chargement des expéditions…</p><div v-else-if="!page?.data.length" class="admin-empty"><strong>Aucune expédition First Delivery ne correspond aux filtres.</strong><span>Les commandes confirmées apparaîtront ici après leur mise en file.</span></div><div v-else class="navex-table"><div class="navex-table-head"><span>Commande</span><span>Barcode</span><span>Statut</span><span>Dernière synchronisation</span><span>Action</span></div><article v-for="shipment in page.data" :key="shipment.public_id"><div><strong>{{ shipment.order.public_reference }}</strong><small>{{ shipment.order.customer_name }}</small></div><code>{{ shipment.barcode || '—' }}</code><span class="admin-badge" :class="['action_manuelle_requise', 'resultat_incertain', 'erreur_synchronisation'].includes(shipment.status) ? 'is-danger' : ''">{{ shipment.status_label }}</span><time>{{ shipment.last_synced_at ? new Date(shipment.last_synced_at).toLocaleString('fr-TN') : 'Pas encore synchronisée' }}</time><RouterLink class="admin-outline" :to="'/orders/' + shipment.order.public_reference">Ouvrir</RouterLink></article><footer class="orders-pagination"><span>{{ page.total }} expédition{{ page.total > 1 ? 's' : '' }}</span><span>Page {{ page.current_page }} sur {{ page.last_page }}</span><div><button type="button" :disabled="page.current_page <= 1" @click="loadShipments(page.current_page - 1)">‹</button><button type="button" :disabled="page.current_page >= page.last_page" @click="loadShipments(page.current_page + 1)">›</button></div></footer></div></section>
+        <section class="navex-shipments first-delivery-pickups"><header><div><p class="admin-eyebrow">Demandes d’enlèvement</p><h2>Manifestes First Delivery</h2><p>Sélectionnez les colis « En attente », créez le manifeste puis imprimez la décharge officielle First Delivery.</p></div><button class="admin-action" type="button" :disabled="!selectedShipmentIds.length || creatingPickup" @click="createPickup">{{ creatingPickup ? 'Création…' : 'Créer le manifeste (' + selectedShipmentIds.length + ')' }}</button></header><p v-if="loadingPickups" class="admin-loading">Chargement des manifestes…</p><div v-else-if="!pickupPage?.data.length" class="admin-empty"><strong>Aucun manifeste créé.</strong><span>Les colis éligibles peuvent être sélectionnés dans le tableau ci-dessous.</span></div><div v-else class="navex-table first-delivery-pickup-table"><div class="navex-table-head"><span>Manifeste</span><span>Colis</span><span>Statut</span><span>Date</span><span>Action</span></div><article v-for="pickup in pickupPage.data" :key="pickup.public_id"><div><strong>{{ pickup.provider_pickup_id || 'En préparation' }}</strong><small>{{ pickup.items.map((item) => item.order_reference).join(', ') }}</small></div><strong>{{ pickup.shipment_count }}</strong><div><span class="admin-badge" :class="['failed', 'uncertain_result'].includes(pickup.status) ? 'is-danger' : ''">{{ pickup.status_label }}</span><small v-if="pickup.safe_message || pickup.last_error">{{ pickup.safe_message || pickup.last_error }}</small></div><time>{{ new Date(pickup.confirmed_at || pickup.queued_at || pickup.created_at || '').toLocaleString('fr-TN') }}</time><div class="navex-summary-actions"><a v-if="pickup.print_url" class="admin-outline" :href="pickup.print_url" target="_blank" rel="noopener noreferrer">Imprimer</a><button v-else-if="pickup.status === 'created'" class="admin-outline" type="button" :disabled="pickup.print_refresh_pending" @click="refreshPickupPrint(pickup)">{{ pickup.print_refresh_pending ? 'Préparation…' : 'Préparer l’impression' }}</button><button v-if="pickup.status === 'failed' && pickup.retryable" class="text-link" type="button" @click="retryPickup(pickup)">Relancer</button></div></article></div><p class="navex-cancellation-help" role="note"><strong>Limite First Delivery</strong><span>CleanCos crée et imprime le manifeste. Les statuts restent synchronisés colis par colis ; aucune édition ou annulation de manifeste n’est exposée par l’API publique.</span></p></section>
+
+        <section class="navex-shipments"><header><div><p class="admin-eyebrow">Suivi des colis</p><h2>Expéditions First Delivery</h2><p>Les statuts locaux sont synchronisés depuis l’API sans modifier le statut commercial de la commande.</p></div></header><div v-if="summary" class="navex-summary-grid"><article><small>En attente d’envoi</small><strong>{{ summary.pending_send }}</strong></article><article><small>En cours de livraison</small><strong>{{ summary.in_delivery }}</strong></article><article><small>Livrées aujourd’hui</small><strong>{{ summary.delivered_today }}</strong></article><article><small>Retournées</small><strong>{{ summary.returned }}</strong></article><article class="is-alert"><small>Actions requises</small><strong>{{ summary.action_required }}</strong></article></div><div class="navex-filters"><label class="toolbar-select"><span>Statut</span><SelectControl v-model="filters.status" :options="statusOptions" @change="loadShipments(1)"/></label><label class="inline-check"><input v-model="filters.action_required" type="checkbox" @change="loadShipments(1)"> Actions requises uniquement</label></div><div v-if="eligibleOnPage.length" class="navex-summary-card"><label class="inline-check"><input type="checkbox" :checked="allEligibleSelected" @change="toggleEligiblePage"> Sélectionner les colis éligibles de cette page</label><strong>{{ selectedShipmentIds.length }} colis sélectionné{{ selectedShipmentIds.length > 1 ? 's' : '' }}</strong></div><p v-if="loadingShipments" class="admin-loading">Chargement des expéditions…</p><div v-else-if="!page?.data.length" class="admin-empty"><strong>Aucune expédition First Delivery ne correspond aux filtres.</strong><span>Les commandes confirmées apparaîtront ici après leur mise en file.</span></div><div v-else class="navex-table"><div class="navex-table-head"><span>Sélection</span><span>Commande</span><span>Barcode</span><span>Statut</span><span>Action</span></div><article v-for="shipment in page.data" :key="shipment.public_id"><div><input v-if="shipment.pickup_eligible" type="checkbox" :checked="selectedShipmentIds.includes(shipment.public_id)" :aria-label="'Sélectionner ' + shipment.order.public_reference" @change="toggleShipment(shipment.public_id)"><small v-else :title="shipment.pickup_eligibility_reason || ''">Non éligible</small></div><div><strong>{{ shipment.order.public_reference }}</strong><small>{{ shipment.order.customer_name }}</small></div><code>{{ shipment.barcode || '—' }}</code><div><span class="admin-badge" :class="['action_manuelle_requise', 'resultat_incertain', 'erreur_synchronisation'].includes(shipment.status) ? 'is-danger' : ''">{{ shipment.status_label }}</span><small v-if="shipment.pickup">{{ shipment.pickup.status_label }} · {{ shipment.pickup.provider_pickup_id || 'en préparation' }}</small><small v-else>{{ shipment.last_synced_at ? new Date(shipment.last_synced_at).toLocaleString('fr-TN') : 'Pas encore synchronisée' }}</small></div><RouterLink class="admin-outline" :to="'/orders/' + shipment.order.public_reference">Ouvrir</RouterLink></article><footer class="orders-pagination"><span>{{ page.total }} expédition{{ page.total > 1 ? 's' : '' }}</span><span>Page {{ page.current_page }} sur {{ page.last_page }}</span><div><button type="button" :disabled="page.current_page <= 1" @click="loadShipments(page.current_page - 1)">‹</button><button type="button" :disabled="page.current_page >= page.last_page" @click="loadShipments(page.current_page + 1)">›</button></div></footer></div></section>
       </template>
     </section>`,
 };

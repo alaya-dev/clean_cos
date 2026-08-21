@@ -7,6 +7,7 @@ use App\Domain\FirstDelivery\Enums\FirstDeliveryStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -23,6 +24,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $next_retry_at
  * @property string|null $last_error
  * @property string|null $request_snapshot_encrypted
+ * @property-read FirstDeliveryPickupItem|null $pickupItem
  */
 class FirstDeliveryShipment extends Model
 {
@@ -126,5 +128,11 @@ class FirstDeliveryShipment extends Model
     public function attempts(): HasMany
     {
         return $this->hasMany(FirstDeliveryShipmentAttempt::class);
+    }
+
+    /** @return HasOne<FirstDeliveryPickupItem, $this> */
+    public function pickupItem(): HasOne
+    {
+        return $this->hasOne(FirstDeliveryPickupItem::class);
     }
 }

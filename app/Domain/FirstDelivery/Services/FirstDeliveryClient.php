@@ -32,6 +32,22 @@ class FirstDeliveryClient
         return $this->request($configuration, 'POST', 'cancel-orders', ['barCodes' => [$barcode]]);
     }
 
+    /** @param array<int, string> $barcodes */
+    public function createPickup(FirstDeliveryConfiguration $configuration, array $barcodes): FirstDeliveryResult
+    {
+        return $this->request($configuration, 'POST', 'pickup', ['barCodes' => array_values($barcodes)], pickup: true);
+    }
+
+    public function printPickup(FirstDeliveryConfiguration $configuration, string $pickupId): FirstDeliveryResult
+    {
+        $pickupId = $this->pickupId($pickupId);
+        if ($pickupId === null) {
+            return new FirstDeliveryResult(false, false, false, false, null, 'pickup_id_invalid', 'Le numéro de manifeste First Delivery est invalide.', null, 0);
+        }
+
+        return $this->request($configuration, 'POST', 'request-print/'.rawurlencode($pickupId), pickup: true, withoutBody: true);
+    }
+
     /** @param array<string, mixed>|null $payload */
     private function request(
         FirstDeliveryConfiguration $configuration,
@@ -39,6 +55,8 @@ class FirstDeliveryClient
         string $path,
         ?array $payload = null,
         bool $creation = false,
+        bool $pickup = false,
+        bool $withoutBody = false,
     ): FirstDeliveryResult {
         $token = $this->configurations->decryptToken($configuration);
         $url = $this->endpoint($configuration->api_base_url, $path);
@@ -59,9 +77,11 @@ class FirstDeliveryClient
         $startedAt = hrtime(true);
         try {
             $request = $this->pendingRequest($token);
-            $response = $method === 'GET'
-                ? $request->get($url)
-                : $request->post($url, $payload ?? []);
+            $response = match (true) {
+                $method === 'GET' => $request->get($url),
+                $withoutBody => $request->send($method, $url),
+                default => $request->post($url, $payload ?? []),
+            };
             $duration = (int) round((hrtime(true) - $startedAt) / 1_000_000);
             $json = $response->json();
             $body = is_array($json) ? $json : null;
@@ -72,8 +92,11 @@ class FirstDeliveryClient
 
             if ($providerAccepted) {
                 $barcode = $creation ? $this->barcode(data_get($body, 'result.barCode')) : null;
-                $printUrl = $creation ? $this->safeProviderUrl(data_get($body, 'result.link')) : null;
-                $classification = $creation && $barcode === null ? 'accepted_without_barcode' : 'accepted';
+                $pickupId = $pickup ? $this->pickupId(data_get($body, 'result.pickup')) : null;
+                $printUrl = ($creation || $pickup) ? $this->safeProviderUrl(data_get($body, 'result.link')) : null;
+                $classification = $creation && $barcode === null
+                    ? 'accepted_without_barcode'
+                    : ($pickup && $pickupId === null ? 'accepted_without_pickup_id' : 'accepted');
 
                 return new FirstDeliveryResult(
                     true,
@@ -87,6 +110,7 @@ class FirstDeliveryClient
                     $duration,
                     $barcode,
                     $printUrl,
+                    $pickupId,
                 );
             }
 
@@ -150,6 +174,16 @@ class FirstDeliveryClient
         $value = trim((string) $value);
 
         return preg_match('/^\d{12}$/D', $value) === 1 ? $value : null;
+    }
+
+    private function pickupId(mixed $value): ?string
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+        $value = trim((string) $value);
+
+        return preg_match('/^[A-Za-z0-9_-]{1,120}$/D', $value) === 1 ? $value : null;
     }
 
     private function safeProviderUrl(mixed $value): ?string

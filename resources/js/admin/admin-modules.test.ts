@@ -139,12 +139,16 @@ describe('admin operational modules', () => {
         expect(delivery).toContain('token_masked');
         expect(delivery).toContain('Tester et synchroniser les localités');
         expect(delivery).toContain('<SelectControl');
+        expect(delivery).toContain('Créer le manifeste');
+        expect(delivery).toContain('first-delivery/pickups');
+        expect(delivery).toContain('refresh-print');
+        expect(delivery).toContain('pickup_eligible');
         expect(detail).toContain('first_delivery_locality_id');
         expect(detail).toContain('Imprimer le bordereau');
         expect(detail).toContain('cancelFirstDelivery');
         expect(list).toContain('delivery_provider');
         expect(list).toContain('provider_label');
-        expect(shell).toContain("path: '/first-delivery'");
+        expect(shell).toContain('path: \'/first-delivery\'');
     });
 
     it('manages feedback state through shared dialogs and toasts', async () => {
