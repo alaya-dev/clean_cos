@@ -3,13 +3,17 @@
 namespace App\Domain\FirstDelivery\Services;
 
 use App\Domain\Commerce\Models\Order;
+use App\Domain\Commerce\Services\CustomerPhoneNormalizer;
 use App\Domain\Commerce\Services\OrderDesignationFormatter;
 use App\Domain\FirstDelivery\Models\FirstDeliveryLocality;
 use Normalizer;
 
 class FirstDeliveryShipmentPayloadFactory
 {
-    public function __construct(private readonly OrderDesignationFormatter $designationFormatter) {}
+    public function __construct(
+        private readonly OrderDesignationFormatter $designationFormatter,
+        private readonly CustomerPhoneNormalizer $phones,
+    ) {}
 
     /** @return array<string, mixed> */
     public function make(Order $order, FirstDeliveryLocality $locality): array
@@ -28,7 +32,7 @@ class FirstDeliveryShipmentPayloadFactory
                 'gouvernerat' => $this->providerText((string) $order->customer_governorate),
                 'ville' => $this->providerText((string) $order->customer_city),
                 'adresse' => $this->providerText((string) $order->customer_address),
-                'telephone' => (string) $order->customer_phone,
+                'telephone' => $this->phones->normalize((string) $order->customer_phone),
                 'telephone2' => '',
             ],
             'Produit' => [

@@ -126,7 +126,7 @@ class FirstDeliveryIntegrationTest extends TestCase
             'https://www.firstdeliverygroup.com/api/v2/*' => Http::response([
                 'isError' => false,
                 'result' => ['barCode' => '123456789012', 'link' => 'https://www.firstdeliverygroup.com/print/123456789012', 'state' => 0],
-            ]),
+            ], 201),
         ]);
         $payload = [
             'Client' => ['nom' => 'Client test', 'locality_id' => 101],
@@ -160,6 +160,7 @@ class FirstDeliveryIntegrationTest extends TestCase
             'is_exchange' => true,
             'exchange_article_designation' => 'Ancien article',
             'exchange_article_count' => 2,
+            'customer_phone' => '+216 22 123 456',
         ]);
 
         $payload = app(FirstDeliveryShipmentPayloadFactory::class)->make($order->load('items'), $locality);
@@ -304,6 +305,35 @@ class FirstDeliveryIntegrationTest extends TestCase
         self::assertDatabaseHas('first_delivery_shipment_attempts', [
             'first_delivery_shipment_id' => $shipment->id,
             'http_status' => 422,
+            'request_sent' => true,
+            'outcome' => 'provider_error',
+            'error_classification' => 'provider_error',
+        ]);
+        Queue::assertPushed(CreateFirstDeliveryShipmentJob::class, 1);
+    }
+
+    public function test_http_500_creation_error_is_a_failed_provider_error_not_uncertain(): void
+    {
+        Queue::fake();
+        $this->configuration('manual');
+        $shipment = app(FirstDeliveryShipmentService::class)->queue($this->order('confirmee', $this->locality()), 'manual');
+        Http::fake(['https://www.firstdeliverygroup.com/api/v2/create' => Http::response([
+            'isError' => true,
+            'message' => 'Provider failure',
+        ], 500)]);
+
+        (new CreateFirstDeliveryShipmentJob($shipment->public_id))->handle(
+            app(FirstDeliveryClient::class),
+            app(FirstDeliveryShipmentAttemptRecorder::class),
+            app(FirstDeliveryShipmentStateService::class),
+        );
+
+        $shipment = $shipment->fresh();
+        self::assertSame(FirstDeliveryStatus::SynchronizationError, $shipment->local_status);
+        self::assertSame('provider_error', $shipment->last_error);
+        self::assertDatabaseHas('first_delivery_shipment_attempts', [
+            'first_delivery_shipment_id' => $shipment->id,
+            'http_status' => 500,
             'request_sent' => true,
             'outcome' => 'provider_error',
             'error_classification' => 'provider_error',
