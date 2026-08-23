@@ -12,6 +12,7 @@ use App\Domain\Commerce\Models\Order;
 use App\Domain\Commerce\Services\CustomerHistoryService;
 use App\Domain\Commerce\Services\OrderExchangeDetails;
 use App\Domain\Commerce\Support\OrderStatusFlow;
+use App\Domain\FirstDelivery\Services\FirstDeliveryShipmentService;
 use App\Domain\MetaTracking\Services\MetaCatalogIdentifierResolver;
 use App\Domain\MetaTracking\Services\MetaEventFactory;
 use App\Domain\Navex\Services\NavexShipmentService;
@@ -30,6 +31,7 @@ class CreateManualOrderAction
         private readonly MetaCatalogIdentifierResolver $catalogIdentifiers,
         private readonly MetaEventFactory $metaEvents,
         private readonly NavexShipmentService $navex,
+        private readonly FirstDeliveryShipmentService $firstDeliveryShipments,
         private readonly OrderExchangeDetails $exchangeDetails,
         private readonly CustomerHistoryService $customers,
     ) {}
@@ -199,6 +201,14 @@ class CreateManualOrderAction
                     $this->navex->queue($order, 'automatic');
                 } catch (ValidationException) {
                     // A disabled/incomplete Navex integration must not undo an order.
+                }
+                try {
+                    // Keep manual creation identical to the normal confirmation
+                    // path. The shipment is persisted here, while its HTTP job is
+                    // dispatched by FirstDeliveryShipmentService after commit.
+                    $this->firstDeliveryShipments->queue($order, 'automatic');
+                } catch (ValidationException) {
+                    // A disabled/incomplete First Delivery integration must not undo an order.
                 }
             }
 

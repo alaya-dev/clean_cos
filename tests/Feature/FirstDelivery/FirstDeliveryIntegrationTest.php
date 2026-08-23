@@ -282,6 +282,35 @@ class FirstDeliveryIntegrationTest extends TestCase
         self::assertDatabaseCount('first_delivery_shipments', 1);
     }
 
+    public function test_http_provider_creation_errors_are_failed_provider_errors_not_uncertain_results(): void
+    {
+        Queue::fake();
+        $this->configuration('manual');
+        $shipment = app(FirstDeliveryShipmentService::class)->queue($this->order('confirmee', $this->locality()), 'manual');
+        Http::fake(['https://www.firstdeliverygroup.com/api/v2/create' => Http::response([
+            'isError' => true,
+            'message' => 'Invalid locality',
+        ], 422)]);
+
+        (new CreateFirstDeliveryShipmentJob($shipment->public_id))->handle(
+            app(FirstDeliveryClient::class),
+            app(FirstDeliveryShipmentAttemptRecorder::class),
+            app(FirstDeliveryShipmentStateService::class),
+        );
+
+        $shipment = $shipment->fresh();
+        self::assertSame(FirstDeliveryStatus::SynchronizationError, $shipment->local_status);
+        self::assertSame('provider_error', $shipment->last_error);
+        self::assertDatabaseHas('first_delivery_shipment_attempts', [
+            'first_delivery_shipment_id' => $shipment->id,
+            'http_status' => 422,
+            'request_sent' => true,
+            'outcome' => 'provider_error',
+            'error_classification' => 'provider_error',
+        ]);
+        Queue::assertPushed(CreateFirstDeliveryShipmentJob::class, 1);
+    }
+
     public function test_provider_status_codes_are_mapped_without_mutating_the_order_business_status(): void
     {
         Queue::fake();
