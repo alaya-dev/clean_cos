@@ -50,7 +50,10 @@ class CreateManualOrderAction
 
                 return $existing->load('items', 'checkoutValues');
             }
-            $resolved = $this->checkout->handle($data);
+            $checkoutData = $data;
+            $firstDeliveryLocalityId = $checkoutData['customer']['first_delivery_locality_id'] ?? null;
+            unset($checkoutData['customer']['first_delivery_locality_id']);
+            $resolved = $this->checkout->handle($checkoutData);
             $exchange = $this->exchangeDetails->normalize($data['exchange'] ?? null);
             $productIds = array_values(array_unique(array_column($data['items'], 'product_public_id')));
             sort($productIds);
@@ -114,6 +117,7 @@ class CreateManualOrderAction
                 'customer_phone' => $resolved['customer']['phone'],
                 'customer_city' => $resolved['customer']['city'],
                 'customer_governorate' => $resolved['customer']['governorate'],
+                'first_delivery_locality_id' => $firstDeliveryLocalityId === null ? null : (int) $firstDeliveryLocalityId,
                 'customer_address' => $resolved['customer']['address'],
                 ...$exchange,
                 'subtotal_millimes' => $subtotal,

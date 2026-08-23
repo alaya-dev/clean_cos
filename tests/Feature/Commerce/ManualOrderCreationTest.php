@@ -5,6 +5,7 @@ namespace Tests\Feature\Commerce;
 use App\Domain\Catalog\Models\Category;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Commerce\Models\Order;
+use App\Domain\FirstDelivery\Models\FirstDeliveryLocality;
 use App\Domain\MetaTracking\Models\MetaConfiguration;
 use App\Domain\MetaTracking\Models\MetaEvent;
 use App\Domain\MetaTracking\Services\MetaConversionsClient;
@@ -69,6 +70,30 @@ class ManualOrderCreationTest extends TestCase
 
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseHas('meta_events', ['event_name' => 'Purchase']);
+    }
+
+    public function test_manual_order_persists_the_selected_first_delivery_locality(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $product = $this->product(2);
+        $locality = FirstDeliveryLocality::query()->create([
+            'locality_id' => 1190,
+            'locality_name' => 'Nabeul',
+            'delegation_name' => 'Nabeul',
+            'governorate_name' => 'Nabeul',
+            'last_synced_at' => now(),
+        ]);
+        $payload = $this->payload($product);
+        $payload['customer']['city'] = 'Nabeul';
+        $payload['customer']['governorate'] = 'Nabeul';
+        $payload['customer']['first_delivery_locality_id'] = $locality->locality_id;
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/admin/orders', $payload)
+            ->assertCreated();
+
+        $order = Order::query()->findOrFail($response->json('data.order.id'));
+        self::assertSame($locality->locality_id, $order->first_delivery_locality_id);
     }
 
     public function test_manual_order_can_start_with_an_operator_defined_total(): void

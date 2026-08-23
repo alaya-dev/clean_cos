@@ -8,6 +8,7 @@ type Variant = { public_id: string; sku: string | null; stock_quantity: number; 
 type Product = { public_id: string; name: string; has_variants: boolean; stock_quantity: number; variants: Variant[]; images?: { public_url?: string | null }[] };
 type Line = { product_public_id: string; variant_public_id: string | null; quantity: number; product: Product; variant: Variant | null };
 type CheckoutField = { key: string; label: string; type: string; is_required: boolean; options?: Array<string | { label?: string; value?: string }> };
+type Locality = { locality_id: number; locality_name: string; delegation_name: string; governorate_name: string };
 
 const manualOrderExcludedFieldKeys = new Set([
     'delivery_note',
@@ -31,7 +32,7 @@ const isManualOrderExcludedField = (field: CheckoutField): boolean => {
 
 const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '';
 const variantLabel = (variant: Variant) => variant.sku || variant.values?.map((value) => value.value).join(' · ') || 'Variante';
-const fixedKeys = new Set(['full_name', 'phone', 'city', 'governorate', 'address']);
+const fixedKeys = new Set(['full_name', 'phone', 'city', 'governorate', 'first_delivery_locality_id', 'address']);
 const idempotencyKey = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
@@ -65,7 +66,9 @@ const ManualOrderCreateView: Component = {
         const selectedGovernorate = ref('');
         const governorateOpen = ref(false);
         const governorateIndex = ref(-1);
-        const customer = ref<Record<string, unknown>>({ full_name: '', phone: '', city: '', governorate: '', address: '' });
+        const customer = ref<Record<string, unknown>>({ full_name: '', phone: '', city: '', governorate: '', first_delivery_locality_id: '', address: '' });
+        const localities = ref<Locality[]>([]);
+        const loadingLocalities = ref(false);
         const exchange = ref({ is_exchange: 'Non', article_designation: '', article_count: null as number | null });
         const status = ref('nouvelle');
         const manualTotalInput = ref('');
@@ -88,13 +91,32 @@ const ManualOrderCreateView: Component = {
             const query = governorateQuery.value.trim().toLocaleLowerCase('fr');
             return governorates.value.filter((governorate) => !query || governorate.toLocaleLowerCase('fr').includes(query));
         });
+        const localityOptions = computed(() => [
+            { value: '', label: loadingLocalities.value ? 'Chargement des localités…' : 'Choisir une localité First Delivery' },
+            ...localities.value.map((locality) => ({ value: String(locality.locality_id), label: `${locality.delegation_name} · ${locality.locality_name}` })),
+        ]);
         const totalItems = computed(() => lines.value.reduce((total, line) => total + Math.max(1, Number(line.quantity) || 1), 0));
         const backToOrders = { path: '/orders', query: route.query };
+        const loadLocalities = async (governorate: string): Promise<void> => {
+            localities.value = [];
+            if (!governorate) return;
+            loadingLocalities.value = true;
+            try {
+                const response = await api<{ data: Locality[] }>(`first-delivery/localities?governorate=${encodeURIComponent(governorate)}`);
+                localities.value = response.data;
+            } catch {
+                localities.value = [];
+            } finally {
+                loadingLocalities.value = false;
+            }
+        };
         const chooseGovernorate = (value: string) => {
             selectedGovernorate.value = value;
             customer.value.governorate = value;
+            customer.value.first_delivery_locality_id = '';
             governorateQuery.value = value;
             governorateOpen.value = false;
+            void loadLocalities(value);
         };
         watch(governorateQuery, (value) => {
             governorateIndex.value = -1;
@@ -222,7 +244,7 @@ const ManualOrderCreateView: Component = {
             }
         });
         onBeforeUnmount(() => { window.clearTimeout(searchTimer); window.clearTimeout(lookupTimer); });
-        return { backToOrders, customer, customerLookup, exchange, status, manualTotalInput, lines, products, productSearch, productSearchInput, productOpen, pendingProduct, saving, loading, extraFields, filteredGovernorates, governorateQuery, governorateOpen, governorateIndex, totalItems, chooseGovernorate, governorateKeydown, addLine, removeLine, maxStock, clampQuantity, optionValue, optionLabel, variantLabel, submit };
+        return { backToOrders, customer, customerLookup, exchange, status, manualTotalInput, lines, products, productSearch, productSearchInput, productOpen, pendingProduct, saving, loading, extraFields, governorates, selectedGovernorate, filteredGovernorates, governorateQuery, governorateOpen, governorateIndex, localities, loadingLocalities, localityOptions, totalItems, chooseGovernorate, governorateKeydown, addLine, removeLine, maxStock, clampQuantity, optionValue, optionLabel, variantLabel, submit };
     },
     template: `<section class="admin-page order-detail-page manual-order-page">
       <RouterLink class="back-link" :to="backToOrders">‹ <span>Retour à la liste des commandes</span></RouterLink>
@@ -235,7 +257,7 @@ const ManualOrderCreateView: Component = {
             <div class="order-add-product"><div><strong>Ajouter un produit</strong><p>Recherchez par nom, puis choisissez la variante si le produit en possède.</p></div><label class="order-product-search"><span class="sr-only">Rechercher un produit</span><input ref="productSearchInput" v-model.trim="productSearch" placeholder="Nom du produit" autocomplete="off" @focus="productOpen = true"><div v-if="productOpen && productSearch" class="order-product-search-options"><button v-for="product in products" :key="product.public_id" type="button" @mousedown.prevent="addLine(product)"><strong>{{ product.name }}</strong><small>{{ product.has_variants ? 'Choisir une variante' : product.stock_quantity + ' en stock' }}</small></button><p v-if="!products.length" class="order-product-search-empty">Aucun produit disponible.</p></div></label></div>
             <div v-if="pendingProduct" class="order-add-variant-picker"><div><strong>{{ pendingProduct.name }}</strong><p>Choisissez la variante à ajouter.</p></div><div class="order-add-variant-options"><button v-for="variant in pendingProduct.variants" :key="variant.public_id" type="button" :disabled="variant.stock_quantity < 1" @click="addLine(pendingProduct, variant)"><strong>{{ variantLabel(variant) }}</strong><small>{{ variant.stock_quantity }} en stock</small></button></div><button class="text-link" type="button" @click="pendingProduct = null">Fermer</button></div>
           </section>
-          <section class="order-panel"><div class="order-panel-heading"><div><h2>Livraison</h2><p>Coordonnées utilisées pour préparer l’expédition.</p></div></div><div class="delivery-form manual-delivery-form"><label>Nom complet<input v-model.trim="customer.full_name" required autocomplete="name"></label><label>Téléphone<input v-model.trim="customer.phone" required inputmode="tel" autocomplete="tel"></label><label>Ville<input v-model.trim="customer.city" required autocomplete="address-level2"></label><div class="admin-combobox"><label>Gouvernorat<input v-model="governorateQuery" role="combobox" aria-autocomplete="list" :aria-expanded="governorateOpen" autocomplete="off" required @focus="governorateOpen = true" @keydown="governorateKeydown"></label><div v-if="governorateOpen" class="admin-combobox-options" role="listbox"><button v-for="(governorate, index) in filteredGovernorates" :key="governorate" type="button" :class="{ 'is-active': governorateIndex === index }" role="option" :aria-selected="selectedGovernorate === governorate" @mousedown.prevent="chooseGovernorate(governorate)">{{ governorate }}</button></div></div><label class="full">Adresse<textarea v-model.trim="customer.address" required autocomplete="street-address"></textarea></label><template v-for="field in extraFields" :key="field.key"><label v-if="field.type === 'textarea'" class="full">{{ field.label }}<textarea v-model="customer[field.key]" :required="field.is_required"></textarea></label><label v-else-if="field.type === 'select' || field.type === 'radio'">{{ field.label }}<select v-model="customer[field.key]" :required="field.is_required"><option value="">Choisir</option><option v-for="option in field.options || []" :key="optionValue(option)" :value="optionValue(option)">{{ optionLabel(option) }}</option></select></label><label v-else-if="field.type === 'checkbox'" class="full manual-checkbox"><input v-model="customer[field.key]" type="checkbox"> <span>{{ field.label }}</span></label><label v-else>{{ field.label }}<input v-model="customer[field.key]" :type="field.type === 'number' ? 'number' : 'text'" :required="field.is_required"></label></template></div></section>
+          <section class="order-panel"><div class="order-panel-heading"><div><h2>Livraison</h2><p>Coordonnées utilisées pour préparer l’expédition.</p></div></div><div class="delivery-form manual-delivery-form"><label>Nom complet<input v-model.trim="customer.full_name" required autocomplete="name"></label><label>Téléphone<input v-model.trim="customer.phone" required inputmode="tel" autocomplete="tel"></label><label>Ville<input v-model.trim="customer.city" required autocomplete="address-level2"></label><div class="admin-combobox"><label>Gouvernorat<input v-model="governorateQuery" role="combobox" aria-autocomplete="list" :aria-expanded="governorateOpen" autocomplete="off" required @focus="governorateOpen = true" @keydown="governorateKeydown"></label><div v-if="governorateOpen" class="admin-combobox-options" role="listbox"><button v-for="(governorate, index) in filteredGovernorates" :key="governorate" type="button" :class="{ 'is-active': governorateIndex === index }" role="option" :aria-selected="selectedGovernorate === governorate" @mousedown.prevent="chooseGovernorate(governorate)">{{ governorate }}</button></div></div><label class="full">Localité First Delivery<SelectControl v-model="customer.first_delivery_locality_id" :options="localityOptions" :disabled="loadingLocalities || !customer.governorate"/><small>Choisissez la localité correspondant à la ville avant l’envoi First Delivery.</small></label><label class="full">Adresse<textarea v-model.trim="customer.address" required autocomplete="street-address"></textarea></label><template v-for="field in extraFields" :key="field.key"><label v-if="field.type === 'textarea'" class="full">{{ field.label }}<textarea v-model="customer[field.key]" :required="field.is_required"></textarea></label><label v-else-if="field.type === 'select' || field.type === 'radio'">{{ field.label }}<select v-model="customer[field.key]" :required="field.is_required"><option value="">Choisir</option><option v-for="option in field.options || []" :key="optionValue(option)" :value="optionValue(option)">{{ optionLabel(option) }}</option></select></label><label v-else-if="field.type === 'checkbox'" class="full manual-checkbox"><input v-model="customer[field.key]" type="checkbox"> <span>{{ field.label }}</span></label><label v-else>{{ field.label }}<input v-model="customer[field.key]" :type="field.type === 'number' ? 'number' : 'text'" :required="field.is_required"></label></template></div></section>
         </main>
         <aside class="order-detail-side"><section class="order-panel manual-order-summary"><div class="order-panel-heading"><div><h2>Validation</h2><p>La commande sera créée seulement après contrôle du serveur.</p></div></div><label>Statut initial<SelectControl v-model="status" :options="[{ value: 'nouvelle', label: 'Nouvelle' }, { value: 'tentative_1', label: 'Tentative 1' }, { value: 'tentative_2', label: 'Tentative 2' }, { value: 'tentative_3', label: 'Tentative 3' }, { value: 'confirmee', label: 'Confirmée' }]"/></label><label class="manual-total-create-field"><span>Total facturé personnalisé <small>(facultatif)</small></span><span class="price-input"><input v-model.trim="manualTotalInput" inputmode="decimal" autocomplete="off" placeholder="Ex. 45,000" aria-describedby="manual-total-help"><em>DT</em></span><small id="manual-total-help">Laissez vide pour conserver le total calculé des articles et de la livraison.</small></label><dl><div><dt>Articles</dt><dd>{{ totalItems }}</dd></div><div><dt>Tarifs</dt><dd>{{ manualTotalInput ? 'Total personnalisé' : 'Calculés au serveur' }}</dd></div><div><dt>Livraison</dt><dd>Calculée au serveur</dd></div></dl><p class="manual-order-note">Le Purchase serveur est mis en file avec le numéro du client. Si vous choisissez « Confirmée », le colis Navex est aussi mis en file selon la configuration active.</p><button class="admin-action" :disabled="saving || !lines.length">{{ saving ? 'Création…' : 'Créer la commande' }}</button></section></aside>
       </form>
