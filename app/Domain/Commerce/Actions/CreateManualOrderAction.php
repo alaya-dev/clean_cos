@@ -12,6 +12,7 @@ use App\Domain\Commerce\Models\Order;
 use App\Domain\Commerce\Services\CustomerHistoryService;
 use App\Domain\Commerce\Services\OrderExchangeDetails;
 use App\Domain\Commerce\Support\OrderStatusFlow;
+use App\Domain\FirstDelivery\Services\FirstDeliveryShipmentService;
 use App\Domain\MetaTracking\Services\MetaCatalogIdentifierResolver;
 use App\Domain\MetaTracking\Services\MetaEventFactory;
 use App\Domain\Navex\Services\NavexShipmentService;
@@ -30,6 +31,7 @@ class CreateManualOrderAction
         private readonly MetaCatalogIdentifierResolver $catalogIdentifiers,
         private readonly MetaEventFactory $metaEvents,
         private readonly NavexShipmentService $navex,
+        private readonly FirstDeliveryShipmentService $firstDeliveryShipments,
         private readonly OrderExchangeDetails $exchangeDetails,
         private readonly CustomerHistoryService $customers,
     ) {}
@@ -50,7 +52,10 @@ class CreateManualOrderAction
 
                 return $existing->load('items', 'checkoutValues');
             }
-            $resolved = $this->checkout->handle($data);
+            $checkoutData = $data;
+            $firstDeliveryLocalityId = $checkoutData['customer']['first_delivery_locality_id'] ?? null;
+            unset($checkoutData['customer']['first_delivery_locality_id']);
+            $resolved = $this->checkout->handle($checkoutData);
             $exchange = $this->exchangeDetails->normalize($data['exchange'] ?? null);
             $productIds = array_values(array_unique(array_column($data['items'], 'product_public_id')));
             sort($productIds);
@@ -114,6 +119,7 @@ class CreateManualOrderAction
                 'customer_phone' => $resolved['customer']['phone'],
                 'customer_city' => $resolved['customer']['city'],
                 'customer_governorate' => $resolved['customer']['governorate'],
+                'first_delivery_locality_id' => $firstDeliveryLocalityId === null ? null : (int) $firstDeliveryLocalityId,
                 'customer_address' => $resolved['customer']['address'],
                 ...$exchange,
                 'subtotal_millimes' => $subtotal,
@@ -195,6 +201,14 @@ class CreateManualOrderAction
                     $this->navex->queue($order, 'automatic');
                 } catch (ValidationException) {
                     // A disabled/incomplete Navex integration must not undo an order.
+                }
+                try {
+                    // Keep manual creation identical to the normal confirmation
+                    // path. The shipment is persisted here, while its HTTP job is
+                    // dispatched by FirstDeliveryShipmentService after commit.
+                    $this->firstDeliveryShipments->queue($order, 'automatic');
+                } catch (ValidationException) {
+                    // A disabled/incomplete First Delivery integration must not undo an order.
                 }
             }
 

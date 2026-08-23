@@ -85,7 +85,8 @@ class FirstDeliveryClient
             $duration = (int) round((hrtime(true) - $startedAt) / 1_000_000);
             $json = $response->json();
             $body = is_array($json) ? $json : null;
-            $providerAccepted = $response->successful()
+            $httpAccepted = $creation ? $response->status() === 201 : $response->successful();
+            $providerAccepted = $httpAccepted
                 && $body !== null
                 && array_key_exists('isError', $body)
                 && $body['isError'] === false;
@@ -114,7 +115,12 @@ class FirstDeliveryClient
                 );
             }
 
-            $temporary = $response->status() === 429 || $response->serverError();
+            // A creation response is authoritative when First Delivery returns
+            // an HTTP response: a 4xx/5xx (or malformed/non-201 creation
+            // response) is a confirmed provider failure, never an uncertain
+            // result. Only a connection/timeout exception below is uncertain.
+            $temporary = ! $creation && ($response->status() === 429 || $response->serverError());
+            $classification = $creation ? 'provider_error' : ($temporary ? 'temporary_failure' : 'provider_rejected');
 
             return new FirstDeliveryResult(
                 false,
@@ -122,7 +128,7 @@ class FirstDeliveryClient
                 false,
                 true,
                 $response->status(),
-                $temporary ? 'temporary_failure' : 'provider_rejected',
+                $classification,
                 $this->message($body) ?? 'First Delivery a refusé la demande.',
                 $body,
                 $duration,

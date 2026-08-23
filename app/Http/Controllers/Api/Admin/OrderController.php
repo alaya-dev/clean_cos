@@ -38,6 +38,7 @@ class OrderController extends Controller
             'checkout_schema_version' => ['required', 'string', 'size:64'],
             'customer' => ['required', 'array'],
             'customer.*' => ['nullable'],
+            'customer.first_delivery_locality_id' => ['nullable', 'integer', 'exists:first_delivery_localities,locality_id'],
             'exchange' => ['sometimes', 'array'],
             'exchange.is_exchange' => ['sometimes'],
             'exchange.article_designation' => ['nullable', 'string', 'max:500'],

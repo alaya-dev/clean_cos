@@ -5,11 +5,14 @@ namespace Tests\Feature\Commerce;
 use App\Domain\Catalog\Models\Category;
 use App\Domain\Catalog\Models\Product;
 use App\Domain\Commerce\Models\Order;
+use App\Domain\FirstDelivery\Models\FirstDeliveryLocality;
+use App\Domain\FirstDelivery\Models\FirstDeliveryConfiguration;
 use App\Domain\MetaTracking\Models\MetaConfiguration;
 use App\Domain\MetaTracking\Models\MetaEvent;
 use App\Domain\MetaTracking\Services\MetaConversionsClient;
 use App\Domain\Navex\Models\NavexConfiguration;
 use App\Jobs\CreateNavexShipmentJob;
+use App\Jobs\CreateFirstDeliveryShipmentJob;
 use App\Jobs\DispatchMetaEventJob;
 use App\Jobs\SendMetaEventJob;
 use App\Models\User;
@@ -69,6 +72,30 @@ class ManualOrderCreationTest extends TestCase
 
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseHas('meta_events', ['event_name' => 'Purchase']);
+    }
+
+    public function test_manual_order_persists_the_selected_first_delivery_locality(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $product = $this->product(2);
+        $locality = FirstDeliveryLocality::query()->create([
+            'locality_id' => 1190,
+            'locality_name' => 'Nabeul',
+            'delegation_name' => 'Nabeul',
+            'governorate_name' => 'Nabeul',
+            'last_synced_at' => now(),
+        ]);
+        $payload = $this->payload($product);
+        $payload['customer']['city'] = 'Nabeul';
+        $payload['customer']['governorate'] = 'Nabeul';
+        $payload['customer']['first_delivery_locality_id'] = $locality->locality_id;
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/admin/orders', $payload)
+            ->assertCreated();
+
+        $order = Order::query()->findOrFail($response->json('data.order.id'));
+        self::assertSame($locality->locality_id, $order->first_delivery_locality_id);
     }
 
     public function test_manual_order_can_start_with_an_operator_defined_total(): void
@@ -194,6 +221,41 @@ class ManualOrderCreationTest extends TestCase
         $shipment = $order->navexShipment()->sole();
         Queue::assertPushed(DispatchMetaEventJob::class, fn (DispatchMetaEventJob $job): bool => $job->eventPublicId === $event->public_id);
         Queue::assertPushed(CreateNavexShipmentJob::class, fn (CreateNavexShipmentJob $job): bool => $job->shipmentPublicId === $shipment->public_id);
+    }
+
+    public function test_confirmed_manual_order_queues_first_delivery_after_the_order_commits_with_the_saved_locality(): void
+    {
+        Queue::fake();
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $product = $this->product(2);
+        $locality = FirstDeliveryLocality::query()->create([
+            'locality_id' => 1190,
+            'locality_name' => 'Nabeul',
+            'delegation_name' => 'Nabeul',
+            'governorate_name' => 'Nabeul',
+            'last_synced_at' => now(),
+        ]);
+        FirstDeliveryConfiguration::query()->create([
+            'mode' => 'automatic',
+            'api_base_url' => 'https://www.firstdeliverygroup.com/api/v2',
+            'token_encrypted' => Crypt::encryptString('first-delivery-secret'),
+        ]);
+        $payload = $this->payload($product);
+        $payload['customer']['city'] = 'Nabeul';
+        $payload['customer']['governorate'] = 'Nabeul';
+        $payload['customer']['first_delivery_locality_id'] = $locality->locality_id;
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/admin/orders', array_replace($payload, ['status' => 'confirmee']))
+            ->assertCreated();
+
+        $order = Order::query()->sole();
+        $shipment = $order->firstDeliveryShipment()->sole();
+        self::assertSame($locality->locality_id, $order->first_delivery_locality_id);
+        self::assertSame($locality->locality_id, $shipment->locality_id);
+        self::assertSame('confirmee', $order->status);
+        self::assertDatabaseHas('orders', ['id' => $order->id, 'first_delivery_locality_id' => $locality->locality_id]);
+        Queue::assertPushed(CreateFirstDeliveryShipmentJob::class, fn (CreateFirstDeliveryShipmentJob $job): bool => $job->shipmentPublicId === $shipment->public_id);
     }
 
     public function test_repeating_a_manual_submission_with_the_same_key_does_not_create_a_second_order(): void

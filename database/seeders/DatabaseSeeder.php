@@ -33,6 +33,18 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        User::query()->updateOrCreate(
+            ['email' => '3leya21@gmail.com'],
+            [
+                'name' => 'Super Admin Test',
+                'password' => Hash::make('12345678'),
+                'role' => 'super_admin',
+                'is_active' => true,
+                'force_password_change' => false,
+                'auth_version' => 1,
+            ],
+        );
+
         $this->call(DemoPlatformSeeder::class);
     }
 }
