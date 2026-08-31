@@ -43,6 +43,18 @@ describe('admin operational modules', () => {
         expect(create).toContain('Total facturé personnalisé');
     });
 
+    it('reuses the shared native select treatment for the First Delivery locality field', () => {
+        const create = readFileSync('resources/js/admin/order-create.ts', 'utf8');
+        const detail = readFileSync('resources/js/admin/order-detail.ts', 'utf8');
+        const styles = readFileSync('resources/css/app.css', 'utf8');
+
+        expect(create).toContain('<SelectControl v-model="customer.first_delivery_locality_id"');
+        expect(detail).toContain('<SelectControl v-model="customer.first_delivery_locality_id"');
+        expect(styles).toContain('.manual-delivery-form select{width:100%}');
+        expect(styles).toContain('background-repeat:no-repeat!important');
+        expect(styles).toContain('background-position:right .8rem center!important');
+    });
+
     it('surfaces new orders without changing the current list ordering', () => {
         const list = readFileSync('resources/js/admin/orders.ts', 'utf8');
         const shell = readFileSync('resources/js/admin/main.ts', 'utf8');
