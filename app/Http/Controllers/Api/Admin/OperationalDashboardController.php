@@ -24,7 +24,8 @@ class OperationalDashboardController extends Controller
             'date_to' => ['nullable', 'date_format:Y-m-d', 'required_if:period,custom', 'after_or_equal:date_from'],
         ]);
         [$from, $until, $period] = $this->period($filters);
-        $key = 'pc:dashboard:v2:'.$from->format('YmdHis').':'.$until->format('YmdHis');
+        $changeSequence = (int) (OrderChangeEvent::query()->max('id') ?? 0);
+        $key = 'pc:dashboard:v3:'.$from->format('YmdHis').':'.$until->format('YmdHis').':'.$changeSequence;
         $data = Cache::remember($key, now()->addSeconds(60), fn (): array => $this->metrics($from, $until));
 
         return ApiResponse::success([
@@ -89,18 +90,48 @@ class OperationalDashboardController extends Controller
                 ],
                 'trend' => $this->trend($from, $until),
             ],
+            'sales' => [
+                'summary' => [
+                    'today' => $this->salesSummary($now->startOfDay()->utc(), $now->endOfDay()->utc()),
+                    'week' => $this->salesSummary($now->startOfWeek()->utc(), $now->endOfDay()->utc()),
+                    'month' => $this->salesSummary($now->startOfMonth()->utc(), $now->endOfDay()->utc()),
+                    'all' => $this->salesSummary(null, null),
+                ],
+                'trend' => $this->salesTrend($from, $until),
+            ],
         ];
     }
 
-    /** @return array{orders:int,total_millimes:int} */
+    /** @return array{orders:int,total_millimes:int,product_millimes:int,shipping_millimes:int} */
     private function salesSummary(?CarbonImmutable $from, ?CarbonImmutable $until): array
     {
-        $query = Order::query()->where('status', '!=', 'annulee');
+        $query = DB::table('orders')->where('status', 'confirmee');
         if ($from && $until) {
             $query->whereBetween('created_at', [$from, $until]);
         }
 
-        return ['orders' => (clone $query)->count(), 'total_millimes' => (int) $query->sum('total_millimes')];
+        $totals = (clone $query)->selectRaw('COUNT(*) as orders, COALESCE(SUM(total_millimes), 0) as total_millimes, COALESCE(SUM(shipping_fee_millimes), 0) as shipping_millimes')->first();
+        $total = (int) ($totals->total_millimes ?? 0);
+        $shipping = (int) ($totals->shipping_millimes ?? 0);
+
+        return ['orders' => (int) ($totals->orders ?? 0), 'total_millimes' => $total, 'product_millimes' => max(0, $total - $shipping), 'shipping_millimes' => $shipping];
+    }
+
+    /** @return list<array{date:string,total_millimes:int}> */
+    private function salesTrend(CarbonImmutable $from, CarbonImmutable $until): array
+    {
+        $rows = DB::table('orders')->where('status', 'confirmee')->whereBetween('created_at', [$from, $until])
+            ->select(DB::raw('DATE(created_at) as day'), DB::raw('SUM(total_millimes) as total_millimes'))
+            ->groupBy(DB::raw('DATE(created_at)'))->get()->keyBy(fn ($row): string => (string) $row->day);
+        $start = $from->timezone('Africa/Tunis')->startOfDay();
+        $end = $until->timezone('Africa/Tunis')->startOfDay();
+        $points = [];
+        for ($date = $start; $date->lessThanOrEqualTo($end); $date = $date->addDay()) {
+            $row = $rows->get($date->toDateString());
+            $points[] = ['date' => $date->toDateString(), 'total_millimes' => (int) ($row->total_millimes ?? 0)];
+        }
+
+        return $points;
     }
 
     /** @return list<array{date:string,orders:int,total_millimes:int}> */

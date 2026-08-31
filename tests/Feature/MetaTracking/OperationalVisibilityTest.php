@@ -11,6 +11,7 @@ use App\Domain\Navex\Models\NavexShipment;
 use App\Jobs\DispatchMetaEventJob;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -50,6 +51,41 @@ class OperationalVisibilityTest extends TestCase
         $this->actingAs($admin)->getJson('/api/v1/admin/dashboard?period=custom&date_from='.now()->subDays(2)->toDateString().'&date_to='.now()->toDateString())
             ->assertOk()
             ->assertJsonPath('data.period', 'custom');
+    }
+
+    public function test_sales_tab_metrics_include_only_confirmed_orders_and_reconcile_product_and_shipping_amounts(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-26 12:00:00', 'Africa/Tunis'));
+        $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
+        $today = now();
+        $this->salesOrder('confirmee', 120_000, 20_000, $today);
+        $this->salesOrder('confirmee', 100_000, 10_000, $today->copy()->subDay());
+        $this->salesOrder('confirmee', 300_000, 30_000, $today->copy()->subMonth());
+        $this->salesOrder('nouvelle', 500_000, 50_000, $today);
+        $this->salesOrder('annulee', 600_000, 60_000, $today);
+
+        $this->actingAs($admin)->getJson('/api/v1/admin/dashboard?period=7d')
+            ->assertOk()
+            ->assertJsonPath('data.sales.summary.today.orders', 1)
+            ->assertJsonPath('data.sales.summary.today.total_millimes', 120_000)
+            ->assertJsonPath('data.sales.summary.today.product_millimes', 100_000)
+            ->assertJsonPath('data.sales.summary.today.shipping_millimes', 20_000)
+            ->assertJsonPath('data.sales.summary.week.orders', 2)
+            ->assertJsonPath('data.sales.summary.week.total_millimes', 220_000)
+            ->assertJsonPath('data.sales.summary.month.orders', 2)
+            ->assertJsonPath('data.sales.summary.all.orders', 3)
+            ->assertJsonPath('data.sales.summary.all.total_millimes', 520_000)
+            ->assertJsonPath('data.sales.summary.all.product_millimes', 460_000)
+            ->assertJsonPath('data.sales.summary.all.shipping_millimes', 60_000)
+            ->assertJsonCount(7, 'data.sales.trend')
+            ->assertJsonStructure(['data' => ['orders', 'sales' => ['summary' => ['today', 'week', 'month', 'all'], 'trend']]]);
+        $this->actingAs($admin)->getJson('/api/v1/admin/dashboard?period=custom&date_from=2026-08-25&date_to=2026-08-26')
+            ->assertOk()
+            ->assertJsonPath('data.sales.summary.today.orders', 1)
+            ->assertJsonCount(2, 'data.sales.trend')
+            ->assertJsonPath('data.sales.trend.0.total_millimes', 100_000)
+            ->assertJsonPath('data.sales.trend.1.total_millimes', 120_000);
+        Carbon::setTestNow();
     }
 
     public function test_super_admin_can_open_safe_diagnostics_and_request_a_password_confirmed_retry(): void
@@ -110,6 +146,14 @@ class OperationalVisibilityTest extends TestCase
             'customer_name' => 'Client test', 'customer_phone' => '20123456', 'customer_city' => 'Tunis', 'customer_address' => 'Adresse test',
             'subtotal_millimes' => 40_000, 'product_discount_millimes' => 0, 'promo_code_discount_millimes' => 0, 'shipping_fee_millimes' => 0, 'total_millimes' => 40_000,
         ]);
+    }
+
+    private function salesOrder(string $status, int $total, int $shipping, \DateTimeInterface $createdAt): Order
+    {
+        $order = $this->order($status);
+        $order->forceFill(['total_millimes' => $total, 'shipping_fee_millimes' => $shipping, 'created_at' => $createdAt, 'updated_at' => $createdAt])->saveQuietly();
+
+        return $order;
     }
 
     private function event(string $name, string $state, ?Order $order = null, bool $marketingConsent = true): MetaEvent

@@ -56,6 +56,10 @@ class CreateManualOrderAction
             $firstDeliveryLocalityId = $checkoutData['customer']['first_delivery_locality_id'] ?? null;
             unset($checkoutData['customer']['first_delivery_locality_id']);
             $resolved = $this->checkout->handle($checkoutData);
+            // Keep the persisted manual-order snapshot identical to the update
+            // path. A configurable checkout field can otherwise overwrite the
+            // fixed phone field with its display formatting.
+            $phone = preg_replace('/[^0-9+]/', '', $resolved['customer']['phone']) ?? $resolved['customer']['phone'];
             $exchange = $this->exchangeDetails->normalize($data['exchange'] ?? null);
             $productIds = array_values(array_unique(array_column($data['items'], 'product_public_id')));
             sort($productIds);
@@ -116,7 +120,7 @@ class CreateManualOrderAction
                 'checkout_payload_hash' => $payloadHash,
                 'status' => $status,
                 'customer_name' => $resolved['customer']['full_name'],
-                'customer_phone' => $resolved['customer']['phone'],
+                'customer_phone' => $phone,
                 'customer_city' => $resolved['customer']['city'],
                 'customer_governorate' => $resolved['customer']['governorate'],
                 'first_delivery_locality_id' => $firstDeliveryLocalityId === null ? null : (int) $firstDeliveryLocalityId,
