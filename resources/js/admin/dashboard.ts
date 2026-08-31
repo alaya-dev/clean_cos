@@ -7,6 +7,8 @@ import { pulseAdminOrderAttention, setAdminNewOrderCount } from './order-attenti
 
 type Summary = { orders: number; total_millimes: number };
 type TrendPoint = { date: string; orders: number; drafts: number; total_millimes: number };
+type SalesSummary = { orders: number; total_millimes: number; product_millimes: number; shipping_millimes: number };
+type SalesTrendPoint = { date: string; total_millimes: number };
 type Dashboard = {
     data: {
         orders: {
@@ -18,6 +20,10 @@ type Dashboard = {
             best_sellers: Array<{ name: string; quantity: number }>;
             summary: { today: Summary; week: Summary; month: Summary; all: Summary };
             trend: TrendPoint[];
+        };
+        sales: {
+            summary: { today: SalesSummary; week: SalesSummary; month: SalesSummary; all: SalesSummary };
+            trend: SalesTrendPoint[];
         };
         order_changes_cursor?: string;
     };
@@ -32,8 +38,10 @@ const dashboardTemplate = `<section class="admin-page dashboard-page">
     <div><p class="admin-eyebrow">Pilotage commercial</p><h1>Tableau de bord</h1><p class="admin-subtitle">Commandes, ventes et produits les plus demandés.</p></div>
     <div class="admin-filter-bar"><label>Période<select v-model="period" @change="period === 'custom' ? null : refresh()"><option value="today">Aujourd’hui</option><option value="7d">7 derniers jours</option><option value="30d">30 derniers jours</option><option value="month">Mois en cours</option><option value="custom">Personnalisée</option></select></label><template v-if="period === 'custom'"><label>Du<input v-model="dateFrom" type="date"></label><label>Au<input v-model="dateTo" type="date"></label><button class="admin-outline" type="button" :disabled="!dateFrom || !dateTo" @click="refresh">Appliquer</button></template><button class="admin-outline" type="button" :disabled="loading" @click="manualRefresh">Actualiser</button></div>
   </header>
+  <nav class="dashboard-tabs" aria-label="Vue du tableau de bord"><button type="button" :class="{ 'is-active': activeTab === 'orders' }" :aria-selected="activeTab === 'orders'" @click="activeTab = 'orders'">Commandes</button><button type="button" :class="{ 'is-active': activeTab === 'sales' }" :aria-selected="activeTab === 'sales'" @click="activeTab = 'sales'">Ventes</button></nav>
   <p v-if="loading" class="admin-loading">Chargement des indicateurs…</p>
   <template v-else-if="dashboard">
+  <template v-if="activeTab === 'orders'">
     <section class="dashboard-kpis" aria-label="Résumé des commandes et ventes">
       <article class="dashboard-kpi"><span class="dashboard-kpi-icon" aria-hidden="true">⌁</span><div><span>Commandes aujourd’hui</span><strong>{{ dashboard.orders.summary.today.total_millimes ? money(dashboard.orders.summary.today.total_millimes) : '0 DT' }}</strong><small>{{ dashboard.orders.summary.today.orders }} commande{{ dashboard.orders.summary.today.orders > 1 ? 's' : '' }}</small></div></article>
       <article class="dashboard-kpi"><span class="dashboard-kpi-icon" aria-hidden="true">7j</span><div><span>Commandes cette semaine</span><strong>{{ money(dashboard.orders.summary.week.total_millimes) }}</strong><small>{{ dashboard.orders.summary.week.orders }} commande{{ dashboard.orders.summary.week.orders > 1 ? 's' : '' }}</small></div></article>
@@ -48,6 +56,16 @@ const dashboardTemplate = `<section class="admin-page dashboard-page">
       <section class="dashboard-card dashboard-order-definition is-wide"><p><strong>Lecture des chiffres :</strong> les cartes de commandes utilisent les montants des commandes non annulées. Les revenus livrés correspondent uniquement aux colis confirmés comme livrés et payés par Navex.</p></section>
     </div>
   </template>
+  <template v-else>
+    <section class="dashboard-kpis dashboard-sales-kpis" aria-label="Résumé des ventes confirmées">
+      <article class="dashboard-kpi"><span class="dashboard-kpi-icon" aria-hidden="true">⌁</span><div><span>Ventes confirmées aujourd’hui</span><strong>{{ money(dashboard.sales.summary.today.total_millimes) }}</strong><small><b>Produits {{ money(dashboard.sales.summary.today.product_millimes) }}</b><i>•</i> Livraison {{ money(dashboard.sales.summary.today.shipping_millimes) }}</small></div></article>
+      <article class="dashboard-kpi"><span class="dashboard-kpi-icon" aria-hidden="true">7j</span><div><span>Ventes confirmées cette semaine</span><strong>{{ money(dashboard.sales.summary.week.total_millimes) }}</strong><small><b>Produits {{ money(dashboard.sales.summary.week.product_millimes) }}</b><i>•</i> Livraison {{ money(dashboard.sales.summary.week.shipping_millimes) }}</small></div></article>
+      <article class="dashboard-kpi"><span class="dashboard-kpi-icon" aria-hidden="true">M</span><div><span>Ventes confirmées ce mois-ci</span><strong>{{ money(dashboard.sales.summary.month.total_millimes) }}</strong><small><b>Produits {{ money(dashboard.sales.summary.month.product_millimes) }}</b><i>•</i> Livraison {{ money(dashboard.sales.summary.month.shipping_millimes) }}</small></div></article>
+      <article class="dashboard-kpi dashboard-kpi-accent"><span class="dashboard-kpi-icon" aria-hidden="true">DT</span><div><span>Total commandes confirmées</span><strong>{{ money(dashboard.sales.summary.all.total_millimes) }}</strong><small><b>Produits {{ money(dashboard.sales.summary.all.product_millimes) }}</b><i>•</i> Livraison {{ money(dashboard.sales.summary.all.shipping_millimes) }}</small></div></article>
+    </section>
+    <section class="dashboard-card dashboard-trend-card is-wide dashboard-sales-trend"><header><div><p class="admin-eyebrow">Évolution</p><h2>Ventes</h2></div><span class="dashboard-card-caption">{{ money(salesPeriodTotal) }} sur la période</span></header><div v-if="dashboard.sales.trend.length" class="dashboard-trend" role="img" aria-label="Montant des ventes confirmées par jour"><div v-for="point in dashboard.sales.trend" :key="point.date" class="dashboard-trend-point" :title="money(point.total_millimes) + ' · ' + trendLabel(point.date)"><strong>{{ compactMoney(point.total_millimes) }}</strong><span class="dashboard-trend-bar"><i :class="{ 'is-empty': point.total_millimes === 0 }" :style="{ height: salesBarHeight(point.total_millimes) }"></i></span><small>{{ trendLabel(point.date) }}</small></div></div><div v-else class="dashboard-empty">Aucune vente confirmée sur cette période.</div></section>
+  </template>
+  </template>
 </section>`;
 
 const DashboardView: Component = {
@@ -55,6 +73,7 @@ const DashboardView: Component = {
         const period = ref('7d');
         const dateFrom = ref('');
         const dateTo = ref('');
+        const activeTab = ref<'orders' | 'sales'>('orders');
         const dashboard = ref<Dashboard['data'] | null>(null);
         const loading = ref(true);
         let refreshController: AbortController | null = null;
@@ -98,6 +117,16 @@ const DashboardView: Component = {
         const draftTotal = computed(() => dashboard.value?.orders.trend.reduce((total, point) => total + point.drafts, 0) ?? 0);
         const orderTrendMax = computed(() => Math.max(1, ...(dashboard.value?.orders.trend.map((point) => point.orders) ?? [1])));
         const orderBarHeight = (value: number) => `${value ? Math.max(8, Math.round((value / orderTrendMax.value) * 100)) : 3}%`;
+        const salesPeriodTotal = computed(() => dashboard.value?.sales.trend.reduce((total, point) => total + point.total_millimes, 0) ?? 0);
+        const salesTrendMax = computed(() => Math.max(1, ...(dashboard.value?.sales.trend.map((point) => point.total_millimes) ?? [1])));
+        const salesBarHeight = (value: number) => `${value ? Math.max(8, Math.round((value / salesTrendMax.value) * 100)) : 3}%`;
+        const compactMoney = (millimes: number) => {
+            const dinars = millimes / 1000;
+            if (dinars >= 1000) return `${(dinars / 1000).toFixed(1).replace('.', ',')} k DT`;
+            if (dinars >= 100) return `${Math.round(dinars)} DT`;
+
+            return `${dinars.toFixed(1).replace('.', ',')} DT`;
+        };
         const statusDonutStyle = computed(() => {
             const colors: Record<string, string> = { nouvelle: '#d79a3b', tentative_1: '#d36b8e', tentative_2: '#d36b8e', tentative_3: '#d36b8e', confirmee: '#8070c9', annulee: '#b35a67' };
             let offset = 0;
@@ -107,7 +136,7 @@ const DashboardView: Component = {
         const trendLabel = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString('fr-TN', { day: '2-digit', month: 'short' });
         onMounted(async () => { const cursor = await refresh(); if (cursor) void startPolling(cursor); });
         onBeforeUnmount(() => { feed?.stop(); refreshController?.abort(); });
-        return { period, dateFrom, dateTo, dashboard, loading, refresh, manualRefresh, money, orderRows, orderedTotal, draftTotal, orderBarHeight, trendLabel, statusDonutStyle, statusLabels };
+        return { period, dateFrom, dateTo, activeTab, dashboard, loading, refresh, manualRefresh, money, compactMoney, orderRows, orderedTotal, draftTotal, orderBarHeight, salesPeriodTotal, salesBarHeight, trendLabel, statusDonutStyle, statusLabels };
     },
     template: dashboardTemplate,
 };

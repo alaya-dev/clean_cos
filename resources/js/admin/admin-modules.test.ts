@@ -64,6 +64,19 @@ describe('admin operational modules', () => {
         expect(styles).toContain('@keyframes admin-order-attention-pulse');
     });
 
+    it('exposes the orders and sales dashboard tabs with the confirmed-sales breakdown', () => {
+        const dashboard = readFileSync('resources/js/admin/dashboard.ts', 'utf8');
+
+        expect(dashboard).toContain('dashboard-tabs');
+        expect(dashboard).toContain('activeTab === \'orders\'');
+        expect(dashboard).toContain('activeTab === \'sales\'');
+        expect(dashboard).toContain('Ventes confirmées aujourd’hui');
+        expect(dashboard).toContain('Produits {{ money(dashboard.sales.summary.today.product_millimes) }}');
+        expect(dashboard).toContain('Livraison {{ money(dashboard.sales.summary.today.shipping_millimes) }}');
+        expect(dashboard).toContain('dashboard.sales.trend');
+        expect(dashboard).toContain('Ventes</h2>');
+    });
+
     it('shows abandoned checkout drafts in the default orders list without a type filter', () => {
         const list = readFileSync('resources/js/admin/orders.ts', 'utf8');
         const styles = readFileSync('resources/css/app.css', 'utf8');
@@ -144,7 +157,7 @@ describe('admin operational modules', () => {
         expect(detail).toContain('cancelFirstDelivery');
         expect(list).toContain('delivery_provider');
         expect(list).toContain('provider_label');
-        expect(shell).toContain("path: '/first-delivery'");
+        expect(shell).toContain('path: \'/first-delivery\'');
     });
 
     it('manages feedback state through shared dialogs and toasts', async () => {
