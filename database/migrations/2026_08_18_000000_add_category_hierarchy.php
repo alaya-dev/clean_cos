@@ -11,12 +11,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('categories', function (Blueprint $table): void {
-            $table->foreignId('parent_id')->nullable()->after('id')->constrained('categories')->nullOnDelete();
+            $table->foreignId('parent_id')
+                ->nullable()
+                ->after('id')
+                ->constrained('categories')
+                ->nullOnDelete();
             $table->index(['parent_id', 'is_active', 'sort_order']);
         });
 
         DB::transaction(function (): void {
-            foreach (DB::table('categories')->whereNull('deleted_at')->orderBy('id')->get() as $category) {
+            foreach (
+                DB::table('categories')
+                    ->whereNull('deleted_at')
+                    ->orderBy('id')
+                    ->get() as $category
+            ) {
                 if (! DB::table('products')->where('category_id', $category->id)->whereNull('deleted_at')->exists()) {
                     continue;
                 }
@@ -46,45 +55,46 @@ return new class extends Migration
                     'updated_at' => $category->updated_at,
                 ]);
 
-                DB::table('products')->where('category_id', $category->id)->update(['category_id' => $subcategoryId]);
+                DB::table('products')
+                    ->where('category_id', $category->id)
+                    ->update([
+                        'category_id' => $subcategoryId,
+                    ]);
             }
         });
     }
 
     public function down(): void
-{
-    DB::transaction(function (): void {
-        foreach (
+    {
+        DB::transaction(function (): void {
+            foreach (
+                DB::table('categories')
+                    ->whereNotNull('parent_id')
+                    ->orderBy('id')
+                    ->get() as $subcategory
+            ) {
+                DB::table('products')
+                    ->where('category_id', $subcategory->id)
+                    ->update([
+                        'category_id' => $subcategory->parent_id,
+                    ]);
+            }
+
             DB::table('categories')
                 ->whereNotNull('parent_id')
-                ->orderBy('id')
-                ->get() as $subcategory
-        ) {
-            DB::table('products')
-                ->where('category_id', $subcategory->id)
-                ->update([
-                    'category_id' => $subcategory->parent_id,
-                ]);
-        }
+                ->delete();
+        });
 
-        DB::table('categories')
-            ->whereNotNull('parent_id')
-            ->delete();
-    });
+        Schema::table('categories', function (Blueprint $table): void {
+            $table->dropForeign(['parent_id']);
+        });
 
-    // 1. Supprimer d'abord la contrainte FK
-    Schema::table('categories', function (Blueprint $table): void {
-        $table->dropForeign(['parent_id']);
-    });
+        Schema::table('categories', function (Blueprint $table): void {
+            $table->dropIndex(['parent_id', 'is_active', 'sort_order']);
+        });
 
-    // 2. Ensuite supprimer l'index composite
-    Schema::table('categories', function (Blueprint $table): void {
-        $table->dropIndex(['parent_id', 'is_active', 'sort_order']);
-    });
-
-    // 3. Enfin supprimer la colonne
-    Schema::table('categories', function (Blueprint $table): void {
-        $table->dropColumn('parent_id');
-    });
-}
+        Schema::table('categories', function (Blueprint $table): void {
+            $table->dropColumn('parent_id');
+        });
+    }
 };
