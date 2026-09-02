@@ -144,7 +144,7 @@ describe('admin operational modules', () => {
         expect(detail).toContain('cancelFirstDelivery');
         expect(list).toContain('delivery_provider');
         expect(list).toContain('provider_label');
-        expect(shell).toContain("path: '/first-delivery'");
+        expect(shell).toContain('path: \'/first-delivery\'');
     });
 
     it('manages feedback state through shared dialogs and toasts', async () => {
