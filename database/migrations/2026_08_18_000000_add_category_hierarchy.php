@@ -52,39 +52,39 @@ return new class extends Migration
     }
 
     public function down(): void
-{
-    DB::transaction(function (): void {
-        foreach (
+    {
+        DB::transaction(function (): void {
+            foreach (
+                DB::table('categories')
+                    ->whereNotNull('parent_id')
+                    ->orderBy('id')
+                    ->get() as $subcategory
+            ) {
+                DB::table('products')
+                    ->where('category_id', $subcategory->id)
+                    ->update([
+                        'category_id' => $subcategory->parent_id,
+                    ]);
+            }
+
             DB::table('categories')
                 ->whereNotNull('parent_id')
-                ->orderBy('id')
-                ->get() as $subcategory
-        ) {
-            DB::table('products')
-                ->where('category_id', $subcategory->id)
-                ->update([
-                    'category_id' => $subcategory->parent_id,
-                ]);
-        }
+                ->delete();
+        });
 
-        DB::table('categories')
-            ->whereNotNull('parent_id')
-            ->delete();
-    });
+        // 1. Supprimer d'abord la contrainte FK
+        Schema::table('categories', function (Blueprint $table): void {
+            $table->dropForeign(['parent_id']);
+        });
 
-    // 1. Supprimer d'abord la contrainte FK
-    Schema::table('categories', function (Blueprint $table): void {
-        $table->dropForeign(['parent_id']);
-    });
+        // 2. Ensuite supprimer l'index composite
+        Schema::table('categories', function (Blueprint $table): void {
+            $table->dropIndex(['parent_id', 'is_active', 'sort_order']);
+        });
 
-    // 2. Ensuite supprimer l'index composite
-    Schema::table('categories', function (Blueprint $table): void {
-        $table->dropIndex(['parent_id', 'is_active', 'sort_order']);
-    });
-
-    // 3. Enfin supprimer la colonne
-    Schema::table('categories', function (Blueprint $table): void {
-        $table->dropColumn('parent_id');
-    });
-}
+        // 3. Enfin supprimer la colonne
+        Schema::table('categories', function (Blueprint $table): void {
+            $table->dropColumn('parent_id');
+        });
+    }
 };
