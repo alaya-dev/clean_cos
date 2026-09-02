@@ -44,8 +44,8 @@ class DemoPlatformSeeder extends Seeder
         $this->call(PassionCatalogSeeder::class);
 
         $superAdmin = User::query()->updateOrCreate(
-            ['email' => 'saberbenmbarek87@gmail.com'],
-            ['name' => 'Saber Ben Mbarek', 'password' => Hash::make('saberbenmbarek87@gmail.com'), 'role' => 'super_admin', 'is_active' => true, 'force_password_change' => false, 'auth_version' => 1],
+            ['email' => 'semahsamaali1@gmail.com'],
+            ['name' => 'Semah Samaali', 'password' => Hash::make('semahsamaali1@gmail.com'), 'role' => 'super_admin', 'is_active' => true, 'force_password_change' => false, 'auth_version' => 1],
         );
         $admin = User::query()->updateOrCreate(
             ['email' => 'admin.demo@ToutDispo.test'],

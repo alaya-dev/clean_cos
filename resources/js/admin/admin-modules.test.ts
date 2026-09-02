@@ -9,6 +9,7 @@ import {
     showToast,
     confirmAction,
 } from './feedback';
+import OrderDetailView from './order-detail';
 
 describe('admin operational modules', () => {
     it('exports the catalogue, inventory, order list, and order detail views', () => {
@@ -40,6 +41,18 @@ describe('admin operational modules', () => {
         expect(create).toContain('manualTotalInput');
         expect(create).toContain('manual_total_millimes');
         expect(create).toContain('Total facturé personnalisé');
+    });
+
+    it('reuses the shared native select treatment for the First Delivery locality field', () => {
+        const create = readFileSync('resources/js/admin/order-create.ts', 'utf8');
+        const detail = readFileSync('resources/js/admin/order-detail.ts', 'utf8');
+        const styles = readFileSync('resources/css/app.css', 'utf8');
+
+        expect(create).toContain('<SelectControl v-model="customer.first_delivery_locality_id"');
+        expect(detail).toContain('<SelectControl v-model="customer.first_delivery_locality_id"');
+        expect(styles).toContain('.manual-delivery-form select{width:100%}');
+        expect(styles).toContain('background-repeat:no-repeat!important');
+        expect(styles).toContain('background-position:right .8rem center!important');
     });
 
     it('surfaces new orders without changing the current list ordering', () => {
@@ -158,7 +171,8 @@ describe('admin operational modules', () => {
         expect(delivery).toContain('pickup_eligible');
         expect(detail).toContain('first_delivery_locality_id');
         expect(detail).toContain('Imprimer le bordereau');
-        expect(detail).toContain('cancelFirstDelivery');
+        expect(String((OrderDetailView as { template?: unknown }).template)).not.toContain('Annuler chez First Delivery');
+        expect(readFileSync('resources/js/admin/order-create.ts', 'utf8')).not.toContain('Annuler chez First Delivery');
         expect(list).toContain('delivery_provider');
         expect(list).toContain('provider_label');
         expect(shell).toContain('path: \'/first-delivery\'');
