@@ -5,7 +5,7 @@ This guide deploys ToutDispo on a fresh Ubuntu 26 VPS with 2 vCPUs,
 scheduler, MySQL and Redis, and host Nginx only as the HTTPS reverse proxy.
 
 Follow this guide exactly and use **only this deployment method** on the VPS.
-Do not install host PHP-FPM, MariaDB, Redis, Supervisor, or a second Laravel
+Do not install host PHP-FPM, MariaDB, Redis, Supervisor, or a second Larave
 cron scheduler. Docker owns those services in this deployment.
 
 ## Use the provider-created `ubuntu` account
