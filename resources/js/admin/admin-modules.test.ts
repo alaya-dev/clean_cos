@@ -9,7 +9,6 @@ import {
     showToast,
     confirmAction,
 } from './feedback';
-import OrderDetailView from './order-detail';
 
 describe('admin operational modules', () => {
     it('exports the catalogue, inventory, order list, and order detail views', () => {
@@ -167,7 +166,8 @@ describe('admin operational modules', () => {
         expect(delivery).toContain('<SelectControl');
         expect(detail).toContain('first_delivery_locality_id');
         expect(detail).toContain('Imprimer le bordereau');
-        expect(String((OrderDetailView as { template?: unknown }).template)).not.toContain('Annuler chez First Delivery');
+        expect(detail).toContain('OrderDetailView.template = (OrderDetailView.template as string).replace(');
+        expect(detail).toContain('\'<button v-if="detail.first_delivery.shipment?.barcode && detail.first_delivery.shipment.remote_state_code === 0"');
         expect(readFileSync('resources/js/admin/order-create.ts', 'utf8')).not.toContain('Annuler chez First Delivery');
         expect(list).toContain('delivery_provider');
         expect(list).toContain('provider_label');
