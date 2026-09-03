@@ -1,9 +1,10 @@
 @import './tokens.css';
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../views/**/*.blade.php';
+@source '../views/storefront/**/*.blade.php';
+@source '../views/components/storefront/**/*.blade.php';
+@source '../views/components/layouts/storefront.blade.php';
 @source '../js/storefront/**/*.ts';
 
 :root{--ink:#1e1719;--paper:#fffdfc;--cream:#f4efed;--pink:#f7d9e3;--accent:#ed9cbb;--accent-dark:#943451;--line:#e4dbd8;--muted:#655a59;--sans:Manrope,Arial,sans-serif;--display:"Playfair Display",Georgia,serif;--mono:"DM Mono",Consolas,monospace;--ease-out:cubic-bezier(.16,1,.3,1);--container:1440px}
