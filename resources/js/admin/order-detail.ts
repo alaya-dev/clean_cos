@@ -442,6 +442,11 @@ OrderDetailView.template = (OrderDetailView.template as string).replace(
 );
 
 OrderDetailView.template = (OrderDetailView.template as string).replace(
+    '<button v-if="detail.first_delivery.shipment?.barcode && detail.first_delivery.shipment.remote_state_code === 0" class="text-link danger" type="button" :disabled="saving" @click="cancelFirstDelivery">Annuler chez First Delivery</button>',
+    '',
+);
+
+OrderDetailView.template = (OrderDetailView.template as string).replace(
     '<div><dt>Adresse</dt><dd>{{ detail.order.customer_address }}</dd></div></dl>',
     '<div><dt>Adresse</dt><dd>{{ detail.order.customer_address }}</dd></div><div><dt>Échange</dt><dd>{{ detail.order.is_exchange ? \'Oui\' : \'Non\' }}<span v-if="detail.order.is_exchange && detail.order.exchange_article_designation"> · {{ detail.order.exchange_article_designation }} ({{ detail.order.exchange_article_count }})</span></dd></div></dl>',
 );

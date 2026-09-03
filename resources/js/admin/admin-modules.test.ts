@@ -9,6 +9,7 @@ import {
     showToast,
     confirmAction,
 } from './feedback';
+import OrderDetailView from './order-detail';
 
 describe('admin operational modules', () => {
     it('exports the catalogue, inventory, order list, and order detail views', () => {
@@ -42,6 +43,18 @@ describe('admin operational modules', () => {
         expect(create).toContain('Total facturé personnalisé');
     });
 
+    it('reuses the shared native select treatment for the First Delivery locality field', () => {
+        const create = readFileSync('resources/js/admin/order-create.ts', 'utf8');
+        const detail = readFileSync('resources/js/admin/order-detail.ts', 'utf8');
+        const styles = readFileSync('resources/css/app.css', 'utf8');
+
+        expect(create).toContain('<SelectControl v-model="customer.first_delivery_locality_id"');
+        expect(detail).toContain('<SelectControl v-model="customer.first_delivery_locality_id"');
+        expect(styles).toContain('.manual-delivery-form select{width:100%}');
+        expect(styles).toContain('background-repeat:no-repeat!important');
+        expect(styles).toContain('background-position:right .8rem center!important');
+    });
+
     it('surfaces new orders without changing the current list ordering', () => {
         const list = readFileSync('resources/js/admin/orders.ts', 'utf8');
         const shell = readFileSync('resources/js/admin/main.ts', 'utf8');
@@ -62,6 +75,19 @@ describe('admin operational modules', () => {
         expect(dashboard).toContain('Produits les plus commandés');
         expect(styles).toContain('.orders-page .order-row:has(.order-status.is-new)');
         expect(styles).toContain('@keyframes admin-order-attention-pulse');
+    });
+
+    it('exposes the orders and sales dashboard tabs with the confirmed-sales breakdown', () => {
+        const dashboard = readFileSync('resources/js/admin/dashboard.ts', 'utf8');
+
+        expect(dashboard).toContain('dashboard-tabs');
+        expect(dashboard).toContain('activeTab === \'orders\'');
+        expect(dashboard).toContain('activeTab === \'sales\'');
+        expect(dashboard).toContain('Ventes confirmées aujourd’hui');
+        expect(dashboard).toContain('Produits {{ money(dashboard.sales.summary.today.product_millimes) }}');
+        expect(dashboard).toContain('Livraison {{ money(dashboard.sales.summary.today.shipping_millimes) }}');
+        expect(dashboard).toContain('dashboard.sales.trend');
+        expect(dashboard).toContain('Ventes</h2>');
     });
 
     it('shows abandoned checkout drafts in the default orders list without a type filter', () => {
@@ -141,7 +167,8 @@ describe('admin operational modules', () => {
         expect(delivery).toContain('<SelectControl');
         expect(detail).toContain('first_delivery_locality_id');
         expect(detail).toContain('Imprimer le bordereau');
-        expect(detail).toContain('cancelFirstDelivery');
+        expect(String((OrderDetailView as { template?: unknown }).template)).not.toContain('Annuler chez First Delivery');
+        expect(readFileSync('resources/js/admin/order-create.ts', 'utf8')).not.toContain('Annuler chez First Delivery');
         expect(list).toContain('delivery_provider');
         expect(list).toContain('provider_label');
         expect(shell).toContain('path: \'/first-delivery\'');

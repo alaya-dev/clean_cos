@@ -1,6 +1,6 @@
-# ToutDispo — complete Docker production guide
+# cleancos — complete Docker production guide
 
-This guide deploys ToutDispo on a fresh Ubuntu 26 VPS with 2 vCPUs,
+This guide deploys cleancos on a fresh Ubuntu 26 VPS with 2 vCPUs,
 4 GB RAM and a 40 GB SSD. It uses Docker Compose for the application, worker,
 scheduler, MySQL and Redis, and host Nginx only as the HTTPS reverse proxy.
 
@@ -27,7 +27,7 @@ If `docker ps` requires `sudo`, add the account to Docker and reconnect:
 sudo usermod -aG docker "$USER"
 ```
 
-Use `ubuntu` consistently for `/home/ubuntu/ToutDispo` and for the
+Use `ubuntu` consistently for `/home/ubuntu/cleancos` and for the
 GitHub Actions SSH deployment.
 
 The Compose services are:
@@ -117,34 +117,34 @@ key is added in GitHub under **Repository → Settings → Deploy keys** with
 `authorized_keys`.
 
 ```sh
-ssh-keygen -t ed25519 -f ~/.ssh/github_ToutDispo -C ToutDispo-vps
-cat ~/.ssh/github_ToutDispo.pub
+ssh-keygen -t ed25519 -f ~/.ssh/github_cleancos -C cleancos-vps
+cat ~/.ssh/github_cleancos.pub
 nano ~/.ssh/config
 ```
 
 Use this SSH config:
 
 ```sshconfig
-Host github-ToutDispo
+Host github-cleancos
     HostName github.com
     User git
-    IdentityFile ~/.ssh/github_ToutDispo
+    IdentityFile ~/.ssh/github_cleancos
     IdentitiesOnly yes
 ```
 
 Test and clone:
 
 ```sh
-chmod 600 ~/.ssh/github_ToutDispo ~/.ssh/config
-ssh -T git@github-ToutDispo
+chmod 600 ~/.ssh/github_cleancos ~/.ssh/config
+ssh -T git@github-cleancos
 mkdir -p /home/ubuntu
-git clone git@github-ToutDispo:YOUR_GITHUB_ACCOUNT/YOUR_REPOSITORY.git /home/ubuntu/ToutDispo
-cd /home/ubuntu/ToutDispo
+git clone git@github-cleancos:YOUR_GITHUB_ACCOUNT/YOUR_REPOSITORY.git /home/ubuntu/cleancos
+cd /home/ubuntu/cleancos
 git checkout main
 ```
 
 Run the GitHub SSH test as `ubuntu`, without `sudo`. `sudo ssh` uses root's
-separate SSH configuration and will not find the `github-ToutDispo`
+separate SSH configuration and will not find the `github-cleancos`
 host alias stored in `/home/ubuntu/.ssh/config`.
 
 ## 4. Create the production environment file
@@ -162,7 +162,7 @@ The following is the complete production baseline. Replace every
 Docker hosts exactly as shown.
 
 ```dotenv
-APP_NAME="ToutDispo"
+APP_NAME="cleancos"
 APP_ENV=production
 APP_DEBUG=false
 APP_KEY=base64:REPLACE_WITH_32_BYTE_RANDOM_KEY
@@ -184,7 +184,7 @@ LOG_LEVEL=warning
 DB_CONNECTION=mysql
 DB_HOST=mysql
 DB_PORT=3306
-DB_DATABASE=ToutDispo
+DB_DATABASE=cleancos
 DB_USERNAME=passion_app
 DB_PASSWORD=REPLACE_WITH_LONG_DATABASE_PASSWORD
 MYSQL_ROOT_PASSWORD=REPLACE_WITH_DIFFERENT_LONG_ROOT_PASSWORD
@@ -195,18 +195,18 @@ REDIS_PORT=6379
 REDIS_PASSWORD=REPLACE_WITH_LONG_REDIS_PASSWORD
 REDIS_DB=0
 REDIS_CACHE_DB=1
-REDIS_PREFIX=ToutDispo-production-
+REDIS_PREFIX=cleancos-production-
 
 CACHE_STORE=redis
 # Leave commented when Redis is dedicated to this app; Laravel derives the
 # cache prefix from APP_NAME. Set a unique value only when sharing Redis.
-# CACHE_PREFIX=ToutDispo-production-cache-
+# CACHE_PREFIX=cleancos-production-cache-
 SESSION_DRIVER=redis
 SESSION_STORE=redis
 SESSION_ENCRYPT=true
 SESSION_LIFETIME=120
 SESSION_EXPIRE_ON_CLOSE=false
-SESSION_COOKIE=ToutDispo-session
+SESSION_COOKIE=cleancos-session
 SESSION_PATH=/
 SESSION_DOMAIN=null
 SESSION_SECURE_COOKIE=true
@@ -247,7 +247,7 @@ OPERATIONS_DISK_WARNING_PERCENT=70
 OPERATIONS_DISK_ELEVATED_PERCENT=80
 OPERATIONS_DISK_CRITICAL_PERCENT=90
 OPERATIONS_RELEASE_PATH=/var/www/html
-OPERATIONS_BACKUP_PATH=/var/backups/ToutDispo
+OPERATIONS_BACKUP_PATH=/var/backups/cleancos
 
 META_GRAPH_API_VERSION=v25.0
 # META_TEST_EVENT_SOURCE_URL=https://boutique.example.tn
@@ -393,7 +393,7 @@ If the domain is **DNS-only** (grey cloud), skip this subsection and omit the
 (strict)** after the origin certificate has been issued; never use Flexible.
 
 ```sh
-sudo nano /etc/nginx/sites-available/ToutDispo
+sudo nano /etc/nginx/sites-available/cleancos
 ```
 
 Use:
@@ -425,7 +425,7 @@ server {
 Enable and obtain TLS:
 
 ```sh
-sudo ln -s /etc/nginx/sites-available/ToutDispo /etc/nginx/sites-enabled/ToutDispo
+sudo ln -s /etc/nginx/sites-available/cleancos /etc/nginx/sites-enabled/cleancos
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo /usr/local/sbin/update-cloudflare-realip
 sudo certbot --nginx -d boutique.example.tn -d www.boutique.example.tn
@@ -542,8 +542,8 @@ fields and business rules have been verified.
 Create the first backup before enabling destructive operational pruning:
 
 ```sh
-sudo install -d -m 750 -o ubuntu -g ubuntu /var/backups/ToutDispo
-BACKUP_DIRECTORY=/var/backups/ToutDispo \
+sudo install -d -m 750 -o ubuntu -g ubuntu /var/backups/cleancos
+BACKUP_DIRECTORY=/var/backups/cleancos \
   KEEP_SETS=2 \
   sh scripts/docker-backup.sh
 ```
@@ -583,15 +583,15 @@ records, or pending Meta events.
 Download the two local backup sets to a separate computer at least weekly:
 
 ```sh
-ls -lh /var/backups/ToutDispo
+ls -lh /var/backups/cleancos
 ```
 
 From Windows PowerShell, for each matching file:
 
 ```powershell
-scp ubuntu@YOUR_VPS_IP:/var/backups/ToutDispo/db-*.sql.gz .
-scp ubuntu@YOUR_VPS_IP:/var/backups/ToutDispo/storage-*.tar.gz .
-scp ubuntu@YOUR_VPS_IP:/var/backups/ToutDispo/SHA256SUMS-* .
+scp ubuntu@YOUR_VPS_IP:/var/backups/cleancos/db-*.sql.gz .
+scp ubuntu@YOUR_VPS_IP:/var/backups/cleancos/storage-*.tar.gz .
+scp ubuntu@YOUR_VPS_IP:/var/backups/cleancos/SHA256SUMS-* .
 ```
 
 Never run `docker compose down -v`; it deletes Docker volumes and therefore
@@ -630,7 +630,7 @@ the health endpoints, storefront, admin login, images, queue and scheduler.
 Every release is:
 
 ```sh
-cd /home/ubuntu/ToutDispo
+cd /home/ubuntu/cleancos
 git pull --ff-only origin main
 sh scripts/docker-deploy.sh
 docker compose --env-file .env.docker ps
@@ -681,7 +681,7 @@ Then configure repository secrets:
 | `SSH_PORT` | `22` unless changed |
 | `SSH_USER` | `ubuntu` |
 | `SSH_KEY` | private Actions key |
-| `DEPLOY_PATH` | `/home/ubuntu/ToutDispo` |
+| `DEPLOY_PATH` | `/home/ubuntu/cleancos` |
 | `VITE_SENTRY_DSN` | optional browser DSN |
 
 The workflow must run `git pull --ff-only` and `sh scripts/docker-deploy.sh`.
