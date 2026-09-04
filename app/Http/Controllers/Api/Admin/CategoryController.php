@@ -85,7 +85,8 @@ class CategoryController extends Controller
         $deletedProducts = DB::transaction(function () use ($category, $deletedAt): int {
             Category::query()->whereKey($category->id)->lockForUpdate()->firstOrFail();
 
-            $subcategoryIds = $category->subcategories()->lockForUpdate()->pluck('id');
+            $subcategories = $category->subcategories()->lockForUpdate()->get();
+            $subcategoryIds = $subcategories->pluck('id');
             $deletedProducts = Product::query()
                 ->whereIn('category_id', $subcategoryIds->push($category->id))
                 ->lockForUpdate()
@@ -95,6 +96,8 @@ class CategoryController extends Controller
                     'updated_at' => $deletedAt,
                 ]);
 
+            $subcategories->each(fn (Category $subcategory) => $subcategory->update(['slug' => $this->deletedSlug($subcategory)]));
+            $category->update(['slug' => $this->deletedSlug($category)]);
             $category->subcategories()->delete();
             $category->delete();
 
@@ -211,5 +214,10 @@ class CategoryController extends Controller
         }
 
         return $data;
+    }
+
+    private function deletedSlug(Category $category): string
+    {
+        return 'deleted-'.$category->id.'-'.Str::ulid();
     }
 }
